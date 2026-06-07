@@ -75,8 +75,10 @@ results/
 ## Status
 
 - [x] Directory skeleton
-- [ ] `docs/benchmark-protocol.md`
-- [ ] `docs/specs/stage-1-spec.md`
-- [ ] Stage-1 fixtures + conformance oracle
-- [ ] Golden scaffolds generated
+- [x] `docs/benchmark-protocol.md`
+- [x] `docs/specs/stage-1-spec.md`
+- [x] Stage-1 fixtures + conformance oracle (10 unit tests + docker IT green; runnable jar)
+- [x] Stage-1 run scripts (`conformance/stage-1/`)
+- [x] Golden scaffolds generated (Tiko `tiko-archetype:0.2.1`; Spring Boot `4.0.6` from Initializr)
+- [ ] Run the 5×2 Stage-1 trials and record results
 - [ ] `docs/specs/stage-2-spec.md` (after Stage 1)
