@@ -41,4 +41,14 @@ class JsonMatchTest {
         assertThat(match("{\"a\":1}", "{\"a\":1,\"b\":2}")).isFalse();
         assertThat(match("{\"a\":1,\"b\":2}", "{\"a\":1}")).isFalse();
     }
+
+    @Test
+    void crossTypeTextVsNumberDoesNotMatch() throws Exception {
+        assertThat(match("{\"a\":\"1\"}", "{\"a\":1}")).isFalse();
+    }
+
+    @Test
+    void arraysAreOrderSignificant() throws Exception {
+        assertThat(match("{\"a\":[1,2]}", "{\"a\":[2,1]}")).isFalse();
+    }
 }

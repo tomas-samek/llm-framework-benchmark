@@ -3,7 +3,6 @@ package io.bench.oracle;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,12 +63,16 @@ public final class KafkaIo implements AutoCloseable {
         p.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         p.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         p.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        p.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, "15000");
+        p.put(ConsumerConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, "15000");
 
         Map<String, JsonNode> latest = new LinkedHashMap<>();
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(p)) {
             consumer.subscribe(List.of(topic));
+            long deadline = System.currentTimeMillis() + 60_000;
             long lastSawRecord = System.currentTimeMillis();
-            while (System.currentTimeMillis() - lastSawRecord < quietMillis) {
+            while (System.currentTimeMillis() - lastSawRecord < quietMillis
+                    && System.currentTimeMillis() < deadline) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(300));
                 if (!records.isEmpty()) {
                     lastSawRecord = System.currentTimeMillis();
@@ -98,9 +101,4 @@ public final class KafkaIo implements AutoCloseable {
         producer.close();
     }
 
-    public Map<String, String> info() {
-        Map<String, String> m = new HashMap<>();
-        m.put("bootstrap", bootstrap);
-        return m;
-    }
 }

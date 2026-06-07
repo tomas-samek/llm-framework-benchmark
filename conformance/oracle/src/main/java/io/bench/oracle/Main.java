@@ -32,6 +32,7 @@ public final class Main {
         if (out != null) {
             Report.writeJson(out, results);
         }
-        System.exit(Report.compliance(results) == 1.0 ? 0 : 1);
+        boolean allPassed = !results.isEmpty() && results.stream().allMatch(Result::passed);
+        System.exit(allPassed ? 0 : 1);
     }
 }

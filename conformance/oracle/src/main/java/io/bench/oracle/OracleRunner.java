@@ -27,6 +27,14 @@ public final class OracleRunner {
 
     public List<Result> run(Scenarios scenarios) throws InterruptedException {
         for (Scenario s : scenarios.scenarios()) {
+            for (Expectation e : s.expect()) {
+                if (!OUTPUT_TOPIC.equals(e.topic())) {
+                    throw new IllegalArgumentException(
+                        "Scenario " + s.id() + ": unsupported expectation topic '" + e.topic() + "'");
+                }
+            }
+        }
+        for (Scenario s : scenarios.scenarios()) {
             for (Step step : s.steps()) {
                 applyStep(step);
             }
@@ -57,6 +65,8 @@ public final class OracleRunner {
             kafka.publishJson(step.publish().topic(), step.publish().key(), step.publish().value());
         } else if (step.publishRaw() != null) {
             kafka.publishRaw(step.publishRaw().topic(), step.publishRaw().key(), step.publishRaw().value());
+        } else {
+            throw new IllegalArgumentException("Step has no recognized action: " + step);
         }
     }
 }

@@ -22,11 +22,12 @@ class OracleRunnerIT {
     @Test
     void drainMatchesAPublishedNotification() throws Exception {
         // A one-scenario fixture: publish a notification directly and expect it back.
+        String key = "smk-" + java.util.UUID.randomUUID();
         String json = "{\"scenarios\":[{\"id\":\"SMOKE\",\"title\":\"smoke\","
-                + "\"steps\":[{\"publish\":{\"topic\":\"notifications\",\"key\":\"smk1\","
-                + "\"value\":{\"purchaseId\":\"smk1\",\"quantity\":1}}}],"
-                + "\"expect\":[{\"topic\":\"notifications\",\"key\":\"smk1\","
-                + "\"value\":{\"purchaseId\":\"smk1\",\"quantity\":1}}]}]}";
+                + "\"steps\":[{\"publish\":{\"topic\":\"notifications\",\"key\":\"" + key + "\","
+                + "\"value\":{\"purchaseId\":\"" + key + "\",\"quantity\":1}}}],"
+                + "\"expect\":[{\"topic\":\"notifications\",\"key\":\"" + key + "\","
+                + "\"value\":{\"purchaseId\":\"" + key + "\",\"quantity\":1}}]}]}";
         Path tmp = Path.of(System.getProperty("java.io.tmpdir"), "smoke-scenarios.json");
         java.nio.file.Files.writeString(tmp, json);
 
