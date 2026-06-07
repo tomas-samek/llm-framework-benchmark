@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Requires a broker on localhost:9092 (conformance/docker-compose.yml up).
- * Run with: mvn -f conformance/oracle/pom.xml test -Dgroups=integration
+ * Run with: mvn -f conformance/oracle/pom.xml test -Pintegration
  */
 @Tag("integration")
 class OracleRunnerIT {
