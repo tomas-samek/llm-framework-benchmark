@@ -1,0 +1,16 @@
+# Build output
+target/
+*.class
+
+# Local data produced by contestant apps during trials
+data/
+**/data/
+
+# Trial workspaces are generated per run, not source
+runs/*/spring/trial-*/
+runs/*/tiko/trial-*/
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
