@@ -14,3 +14,6 @@ runs/*/tiko/trial-*/
 .DS_Store
 .idea/
 *.iml
+
+# Maven shade plugin byproduct
+dependency-reduced-pom.xml
