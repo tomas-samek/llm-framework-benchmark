@@ -12,7 +12,7 @@ Using curl against Spring Initializr (no Spring CLI required):
         -d type=maven-project \
         -d language=java \
         -d javaVersion=21 \
-        -d bootVersion=3.3.5 \
+        -d bootVersion=4.0.6 \
         -d groupId=eu.bench.notify \
         -d artifactId=notify \
         -d name=notify \
@@ -22,8 +22,14 @@ Using curl against Spring Initializr (no Spring CLI required):
     unzip notify.zip -d notify && rm notify.zip
 
 (Equivalent Spring CLI: `spring init --build=maven --java-version=21 \
- --boot-version=3.3.5 --group-id=eu.bench.notify --artifact-id=notify \
+ --boot-version=4.0.6 --group-id=eu.bench.notify --artifact-id=notify \
  --name=notify notify`.)
+
+> **Note — bootVersion fallback (generated 2026-06-07):** bootVersion 3.3.5 was
+> rejected by start.spring.io (HTTP 400); Spring Boot 3.3.x is no longer offered.
+> The current default per `GET /metadata/client` was 4.0.6.RELEASE; the Maven
+> Central artifact is published without the `.RELEASE` suffix, so `4.0.6` was used.
+> Pinned bootVersion: 4.0.6 (current Initializr default as of generation).
 
 `dependencies=` (empty) yields core only: `spring-boot-starter` +
 `spring-boot-starter-test`.
