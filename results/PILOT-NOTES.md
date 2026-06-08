@@ -47,3 +47,34 @@ upserts to H2 effectively didn't happen for the lookups the purchase handler rea
 - Harness, oracle, scaffolds, run scripts: complete and committed.
 - To resume: run trials NN=02..05 per framework (copy golden scaffold → contestant
   build → `conformance/stage-1` grade), then aggregate median + spread per protocol §8.
+
+## MCP-assisted Tiko re-run (new category `tiko-mcp`)
+
+`jbang` was installed and the `tiko-mcp:0.2.2` topology server confirmed working
+(13 read-only tools: `topology_overview`, `trace_event_flow`, `list_events`,
+`explain_wiring`, `list_wiring_errors`, …; no MCP resources). The `tiko-mcp`
+contestant got the same spec/isolation/deps as `tiko`, plus the topology server
+(invoked via a jbang one-shot stdio recipe) and a requirement to validate its
+wiring before finishing.
+
+| Category | trial-01 | detail file |
+|---|---|---|
+| spring | 0% (0/7) | `results/stage-1-spring-01.json` |
+| tiko (no mcp) | 29% (2/7) | `results/stage-1-tiko-01.json` |
+| **tiko (mcp)** | **86% (6/7)** | `results/stage-1-tiko-mcp-01.json` |
+
+**Finding:** the topology server is worth ~+57 points here. The no-mcp run shipped a
+reference-enrichment flow that silently didn't wire (null `userName`/`productName`);
+the mcp run used `trace_event_flow`/`topology_overview`, saw the gap, added the
+`*Upserted` reference handlers, and verified the flow before declaring done.
+
+**Caveat — AC6/buyB:** both Tiko runs emitted the stale price for buyB (refresh
+`7999→8999` not applied in time). Cross-topic ordering (price-updates vs purchases)
+is unguaranteed and the fixture allows only a 3s settle, so this is likely harness
+timing sensitivity rather than a pure app defect. Candidate fix: lengthen the settle
+before the refresh purchase in AC6, or have the oracle confirm the 2nd price update
+was consumed before publishing buyB.
+
+**Validity:** n=1 per category — directional, not statistically robust. The MCP was
+delivered via a CLI one-shot, not an always-on session MCP client (a faithful
+approximation; results identical since it's the same server over the same metadata).
