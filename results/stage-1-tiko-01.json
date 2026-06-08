@@ -1,0 +1,41 @@
+{
+  "compliance" : 0.2857142857142857,
+  "passed" : 2,
+  "total" : 7,
+  "results" : [ {
+    "scenario" : "AC1",
+    "key" : "buy1",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy1\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":2,\"totalCents\":15998,\"occurredAt\":\"2026-06-07T10:15:00Z\"} but got {\"purchaseId\":\"buy1\",\"userId\":\"u1\",\"userName\":null,\"productId\":\"p1\",\"productName\":null,\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":2,\"totalCents\":15998,\"occurredAt\":\"2026-06-07T10:15:00Z\"}"
+  }, {
+    "scenario" : "AC2",
+    "key" : "buy2",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC3",
+    "key" : "buy3",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC4",
+    "key" : "buy4",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy4\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:18:00Z\"} but got {\"purchaseId\":\"buy4\",\"userId\":\"u1\",\"userName\":null,\"productId\":\"p1\",\"productName\":null,\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:18:00Z\"}"
+  }, {
+    "scenario" : "AC5",
+    "key" : "buy5",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:19:00Z\"} but got {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":null,\"productId\":\"p1\",\"productName\":null,\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:19:00Z\"}"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyA",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buyA\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:20:00Z\"} but got {\"purchaseId\":\"buyA\",\"userId\":\"u1\",\"userName\":null,\"productId\":\"p1\",\"productName\":null,\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:20:00Z\"}"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyB",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":8999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":8999,\"occurredAt\":\"2026-06-07T10:21:00Z\"} but got {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":null,\"productId\":\"p1\",\"productName\":null,\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:21:00Z\"}"
+  } ]
+}
