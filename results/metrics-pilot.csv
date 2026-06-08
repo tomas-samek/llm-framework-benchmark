@@ -1,0 +1,4 @@
+timestamp,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agent_turns,tool_calls
+2026-06-08T05:38:29,spring,stage-1,01,0.0,,,,
+2026-06-08T08:05:38,tiko,stage-1,01,0.2857142857142857,,,,
+2026-06-08T17:42:00,tiko-mcp,stage-1,01,0.8571428571428571,,,,
