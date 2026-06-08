@@ -10,6 +10,12 @@ skill is the procedure for building with the framework; the files below
 are the reference.
 
 
+Read
+[`.ai-skills/tiko-cookbook-extension/SKILL.md`](./.ai-skills/tiko-cookbook-extension/SKILL.md) —
+the procedural skill for adding a new recipe. Load-bearing rule:
+**ask, don't fabricate.**
+
+
 The canonical conventions live in [`CLAUDE.md`](./CLAUDE.md) at the project
 root. It covers:
 

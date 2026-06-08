@@ -10,6 +10,11 @@ anti-pattern redirect table so you reach for the tiko-native primitive
 instead of searching for a Spring equivalent.
 
 
+Read [`tiko-cookbook-extension/SKILL.md`](./tiko-cookbook-extension/SKILL.md) —
+the procedural skill for adding a new recipe to the cookbook.
+Load-bearing rule: **ask, don't fabricate.**
+
+
 - README: https://github.com/tomas-samek/tiko-di/blob/main/README.md
 - Worked examples: https://github.com/tomas-samek/tiko-di/tree/main/tiko-examples
 - Issue tracker: https://github.com/tomas-samek/tiko-di/issues

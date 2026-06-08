@@ -7,13 +7,13 @@ Generated once, committed untouched. Every trial copies this tree.
     mvn archetype:generate \
         -DarchetypeGroupId=io.github.tomas-samek \
         -DarchetypeArtifactId=tiko-archetype \
-        -DarchetypeVersion=0.2.1 \
+        -DarchetypeVersion=0.2.2 \
         -DgroupId=eu.bench.notify \
         -DartifactId=notify \
         -Dversion=1.0.0-SNAPSHOT \
         -DinteractiveMode=false
 
-Verify `0.2.1` is the latest published archetype on Maven Central
+Verify `0.2.2` is the latest published archetype on Maven Central
 (https://central.sonatype.com/artifact/io.github.tomas-samek/tiko-archetype).
 If a newer version is the pinned Tiko version, use it and update
 `docs/benchmark-protocol.md` §3 to match. Do NOT hand-edit the generated tree —

@@ -48,8 +48,7 @@ yields at generation time (this is part of the as-shipped condition):
 - **Spring Boot `4.0.6`** — the current Spring Initializr default. (Initializr
   serves only supported lines; 3.3.x is no longer offered, so it cannot be
   pinned via `spring init`.)
-- **Tiko `0.2.1`** via `tiko-archetype:0.2.1`. (`0.2.2` is also on Maven Central;
-  bump both the archetype and this pin together if you want the newest.)
+- **Tiko `0.2.2`** via `tiko-archetype:0.2.2` (latest on Maven Central).
 
 The Lucene/H2/Kafka substrate versions above are pinned independently of the
 framework versions and are identical for both contestants.
