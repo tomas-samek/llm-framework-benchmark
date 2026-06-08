@@ -14,3 +14,4 @@ timestamp,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agen
 2026-06-08T20:17:48Z,tiko-mcp,stage-1,03,0,,,,
 2026-06-08T20:20:24Z,tiko-mcp,stage-1,04,100,,,,
 2026-06-08T20:21:48Z,tiko-mcp,stage-1,05,0,,,,
+2026-06-08T19:52:09Z,spring3,stage-1,01,100,,,,

@@ -73,6 +73,29 @@ The pilot reported spring 0% / tiko 29% / tiko-mcp 86% and a large MCP lift. The
 tiko 29% and the lift were **timing artifacts** of the 3s settle + non-`-v` broker.
 The controlled 5× run is authoritative: **MCP lift ≈ 0 here; Tiko ≫ Spring(4.0.6).**
 
+## Reference: Spring on a version the model knows (Boot 3.3.5)
+
+To separate "framework design" from "training-data recency," one extra Spring trial
+was built with the parent pinned to **Spring Boot 3.3.5** (well inside the model's
+training), same spec/rules.
+
+| Category | compliance |
+|---|---|
+| spring (Boot 4.0.6) | median 0% (1/5 correct) |
+| **spring3 (Boot 3.3.5)** | **100% (7/7), first try, n=1** |
+| tiko / tiko-mcp (0.2.2) | median 86% |
+
+**This reframes everything.** Spring's 0% was almost entirely **Boot-4 novelty**, not a
+Spring design flaw — given a known version the model nailed the spec immediately. So:
+- "Tiko beats Spring" is **false** as a framework-design claim. Known-Spring = 100%.
+- The fair, useful readings are:
+  1. **Tiko is genuinely AI-friendly for a framework outside the training corpus:**
+     ~86% median with essentially no model priors, carried by its bundled
+     guidance — and its failures are concentrated in one fixable area (config strictness).
+  2. **Brand-new framework *versions* are a real, separate hazard:** a major Spring
+     bump alone took the same model from 100% to a median 0%. "As-shipped
+     AI-friendliness" is as much about version recency + bundled docs as about API design.
+
 ## Caveats / validity
 - N=5 is directional, not statistically strong; both Tiko variants have 2/5 hard
   failures + a 86–100 cluster.
