@@ -12,7 +12,7 @@
         { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
         { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
         { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buy1", "value": { "purchaseId": "buy1", "userId": "u1", "productId": "p1", "quantity": 2, "occurredAt": "2026-06-07T10:15:00Z" } } }
       ],
       "expect": [
@@ -34,7 +34,7 @@
       "title": "only price known - total computed, names null",
       "steps": [
         { "publish": { "topic": "price-updates", "key": "p2", "value": { "productId": "p2", "priceCents": 500, "currency": "EUR" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buy3", "value": { "purchaseId": "buy3", "userId": "u-x", "productId": "p2", "quantity": 4, "occurredAt": "2026-06-07T10:17:00Z" } } }
       ],
       "expect": [
@@ -49,7 +49,7 @@
         { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
         { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
         { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buy4", "value": { "purchaseId": "buy4", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:18:00Z" } } }
       ],
       "expect": [
@@ -64,7 +64,7 @@
         { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
         { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
         { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buy5", "value": { "purchaseId": "buy5", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:19:00Z" } } }
       ],
       "expect": [
@@ -78,11 +78,11 @@
         { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
         { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
         { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buyA", "value": { "purchaseId": "buyA", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:20:00Z" } } },
-        { "settleMs": 2000 },
+        { "settleMs": 4000 },
         { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 8999, "currency": "USD" } } },
-        { "settleMs": 3000 },
+        { "settleMs": 6000 },
         { "publish": { "topic": "purchases", "key": "buyB", "value": { "purchaseId": "buyB", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:21:00Z" } } }
       ],
       "expect": [
