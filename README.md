@@ -1,84 +1,96 @@
-# Spring Boot vs Tiko DI — AI-friendliness benchmark
+# LLM Framework Benchmark
 
-Which framework lets an AI agent build the *same specified system* better?
-"Better" = passes the shared acceptance tests, at lower token/turn/time cost,
-at higher code quality.
+**How well can an AI coding agent build the *same specified system* on different frameworks?**
+A framework-neutral spec, an external black-box oracle that grades the result, and
+clean per-framework scaffolds — so the only variable is the framework (and the
+agent). First comparison: **Spring Boot vs [Tiko DI](https://github.com/tomas-samek/tiko-di)**,
+on an event-driven Kafka → H2 → merged-notification service.
 
-This repo holds **only the benchmark harness** — the neutral specs, the shared
-acceptance fixtures, the external conformance oracle, the clean scaffolds, and
-the per-trial run workspaces. It contains no system-under-test code itself;
-that is produced *inside* `runs/` by each agent trial.
+The benchmark grades each run on **compliance** (does it actually pass the
+acceptance scenarios, judged by an independent harness — not the agent's own
+tests), with hooks for **efficiency** and **code quality**.
 
-## What's pinned (shared substrate, identical for both)
+## Headline results — Stage 1
 
-Apache Kafka (broker), H2 (embedded DB), Apache Lucene (search engine), JDK 21,
-Maven. Exact versions are pinned in `docs/benchmark-protocol.md`. These are
-libraries/infrastructure, **not** the frameworks under test — pinning them
-isolates the only variable to Spring-vs-Tiko.
+Model: **Claude Opus 4.8** (2026-06). N=5 per cell (spring3 is a single reference
+run). Compliance = oracle scenarios passed / 7. Fixed fixtures, fresh broker per
+trial. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
 
-## Fairness rule (asymmetric-native)
+| Cell | Framework / version | Median compliance | Notes |
+|---|---|---|---|
+| spring | Spring Boot **4.0.6** | **0%** (1/5 correct) | brand-new major; model writes Boot-3 idioms that silently no-op |
+| spring3 | Spring Boot **3.3.5** | **100%** (n=1, first try) | a version the model knows → nails it |
+| tiko | Tiko **0.2.2** | **86%** | out-of-corpus framework; carried by bundled in-repo guidance |
+| tiko-mcp | Tiko **0.2.2** + MCP | **86%** | identical to `tiko` here (see finding 3) |
 
-- **Spring** may use first-party starters: `spring-kafka`, `spring-data-jpa`,
-  `spring-boot-starter-web`.
-- **Tiko** may use first-party modules: `tiko-config`, `tiko-kafka`,
-  `tiko-test`; and **must hand-build** DB access (raw JDBC over a pooled
-  `DataSource`) and the HTTP endpoint (JDK `com.sun.net.httpserver`) — never
-  lifted from `tiko-examples`.
+### What it found
 
-## Starting line (each framework's canonical fresh start, as-shipped)
+1. **Version recency dominates.** The *same model* scored 100% on Spring Boot 3.3.5
+   and a median **0%** on 4.0.6. A single major-version bump — not a worse model,
+   not a worse framework — caused it. The dangerous part is *silent* failure:
+   Boot-4 apps compiled, ran, and emitted nothing. Even the current frontier model
+   shows this; it's structural to training-on-historical-corpus, and the lag is
+   *longer* than "time since cutoff" because the old version dominates the corpus.
 
-- **Tiko:** `mvn archetype:generate` from the Tiko archetype, untouched
-  (keeps its bundled `CLAUDE.md`, `.ai-skills`, `.mcp.json` / MCP topology
-  server). Stored as a golden copy in `scaffolds/tiko/`.
-- **Spring:** `spring init` with **core only**; the agent adds dependencies as
-  the spec requires. Stored as a golden copy in `scaffolds/spring/`.
+2. **An unknown framework that ships its own docs can beat a known framework's
+   unknown new version.** Tiko (essentially absent from training) reached 86%
+   median because its scaffold ships machine-readable guidance the agent reads at
+   build time; bare Boot-4 shipped neither training familiarity nor docs.
 
-## Directory layout
+3. **The MCP topology server showed no compliance lift *here*** — `tiko` and
+   `tiko-mcp` were identical (`0 0 86 86 100`). The pilot's apparent +57 pts was a
+   fixture-timing artifact. Caveat: the validation gate targeted *wiring*, which the
+   model already got right; it did not target *config*, which is where Tiko actually
+   failed — so this is "MCP-for-wiring = no lift," not a general verdict.
+
+4. **Tiko's main AI-friendliness issue is strict config validation** — 4/10 Tiko
+   trials died at startup because the model used kebab-case / Spring-style config
+   keys that Tiko's `@Configuration` records reject. The single most actionable fix.
+
+> These are directional results: small N, one model, one point in time, and some
+> early prompts carried hints. See `results/RESULTS.md` → "Caveats / validity".
+
+## How it works
+
+- **Framework-neutral spec** (`docs/specs/stage-1-spec.md`) — describes *what* to
+  build, with zero framework words.
+- **External conformance oracle** (`conformance/oracle/`, Java) — brings up Kafka,
+  publishes the shared fixtures (`fixtures/stage-1/scenarios.json`), drains the
+  output topic, and asserts the result. The agent's own tests don't count.
+- **Asymmetric-native fairness** — each framework uses its own first-party stack;
+  neither may copy from example repos. Tiko, having no first-party DB/HTTP module,
+  must hand-build those. Full rules in `docs/benchmark-protocol.md`.
+- **Pinned substrate** — apache/kafka 3.8.0, H2 2.2.224, Lucene 9.11.1, JDK 21,
+  identical for everyone, so the only variable is the framework + the agent.
+
+## Run it — including with other agents
+
+See **[`RUNNING.md`](RUNNING.md)** for the canonical, neutral per-trial procedure:
+copy a golden scaffold, hand the agent only the spec + dependency rules (no hints),
+let it build, then grade with the oracle. The procedure is agent-agnostic — point
+Claude, GPT, Gemini, Cursor, etc. at the same scaffold + spec and compare. Running
+it across agents is the natural next step.
+
+## Layout
 
 ```
-docs/
-  benchmark-protocol.md     # the rules: scaffolds, fairness, substrate, metrics, scoring, stop rule
-  specs/
-    stage-1-spec.md         # neutral WHAT: ingest -> merge -> emit notification
-    stage-2-spec.md         # neutral WHAT: add full-text search index + query endpoint
-fixtures/
-  stage-1/                  # shared acceptance test vectors (input -> expected output, JSON)
-  stage-2/
-conformance/
-  stage-1/                  # external black-box oracle (docker-compose Kafka + checker)
-  stage-2/
-scaffolds/
-  spring/  tiko/            # golden clean starting points (copied per trial, never edited)
-runs/
-  stage-1/spring/<trial-NN>/   # fresh copy of golden scaffold + the stage spec; agent works here
-  stage-1/tiko/<trial-NN>/
-  stage-2/spring/<trial-NN>/
-  stage-2/tiko/<trial-NN>/
-results/
-  metrics.csv              # per trial: compliance %, tokens, turns, tool calls, wall-clock
-  reviews/                 # per trial: blinded rubric-based code-quality review
+docs/   benchmark-protocol.md (rules) + specs/ (framework-neutral WHAT)
+fixtures/   shared acceptance vectors (input -> expected output)
+conformance/   oracle (Java) + docker-compose Kafka + run scripts
+scaffolds/   golden per-framework starting points (+ GENERATE.md)
+results/   metrics.csv + per-trial oracle JSON + RESULTS.md
+runs/   per-trial workspaces (git-ignored; see runs/README.md)
 ```
-
-## Method (summary; full detail in `docs/benchmark-protocol.md`)
-
-- **Multiple trials per cell:** N>=3 (target 5) independent trials per framework
-  per stage, fresh session each. Report median + spread.
-- **Compliance graded externally** by the `conformance/` oracle, not by the
-  agent's own tests.
-- **Pin & stop rule:** same model/version/temperature/tooling; a run ends when
-  the agent declares done or hits the token/turn/wall-clock cap.
-- **Isolation:** each trial sees only its scaffold + the stage spec — never the
-  other framework, the originals, or prior trials.
-- **Tiko affordance check:** verify the MCP server/jbang is reachable per Tiko
-  run, so Tiko is measured at its real as-shipped capability.
 
 ## Status
 
-- [x] Directory skeleton
-- [x] `docs/benchmark-protocol.md`
-- [x] `docs/specs/stage-1-spec.md`
-- [x] Stage-1 fixtures + conformance oracle (10 unit tests + docker IT green; runnable jar)
-- [x] Stage-1 run scripts (`conformance/stage-1/`)
-- [x] Golden scaffolds generated (Tiko `tiko-archetype:0.2.1`; Spring Boot `4.0.6` from Initializr)
-- [ ] Run the 5×2 Stage-1 trials and record results
-- [ ] `docs/specs/stage-2-spec.md` (after Stage 1)
+- [x] Protocol, Stage-1 spec, fixtures, conformance oracle (tests green)
+- [x] Golden scaffolds (Spring Boot 4.0.6 + 3.3.5 reference; Tiko 0.2.2)
+- [x] Stage-1 run: spring, tiko, tiko-mcp (5x) + spring3 reference — `results/RESULTS.md`
+- [ ] Run with non-Claude agents
+- [ ] Capture efficiency + code-quality rubric; n=10
+- [ ] Stage-2 spec (full-text search)
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
