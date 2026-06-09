@@ -10,6 +10,17 @@ The benchmark grades each run on **compliance** (does it actually pass the
 acceptance scenarios, judged by an independent harness — not the agent's own
 tests), with hooks for **efficiency** and **code quality**.
 
+> **Note on Tiko — intentionally unknown to LLMs.** Tiko DI is *purposefully*
+> developed and used as an **out-of-training-corpus** framework. Its premise is
+> that a framework can be AI-friendly **without** relying on the model's prior
+> familiarity — instead shipping machine-readable, in-repo affordances:
+> guidance (`CLAUDE.md`, `.ai-skills/`), compile-time wiring validation, and an
+> MCP topology server. So in this benchmark Tiko is a deliberate test case for the
+> question *"can an agent succeed on a framework it was never trained on, given
+> good in-repo affordances?"* — which is also why it makes a fair foil for a
+> brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: largely
+> yes — 86% median, vs Boot-4's 0%.)
+
 ## Headline results — Stage 1
 
 Model: **Claude Opus 4.8** (2026-06). N=5 per cell (spring3 is a single reference
