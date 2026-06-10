@@ -1,6 +1,10 @@
 # Stage-1 results — 5× per category (authoritative)
 
 **Date:** 2026-06-08
+**Model (CORRECTED 2026-06-10):** contestant agents ran on **Claude Sonnet 4.6**
+(`model: sonnet` subagent override), orchestrated by Claude Opus 4.8. An earlier
+revision of this file mis-attributed the contestants to Opus 4.8; `results/metrics.csv`
+now carries an explicit `model` column per trial.
 **Setup:** framework-neutral Stage-1 spec; external conformance oracle (7 expectations,
 AC1–AC6); pinned substrate (apache/kafka:3.8.0, H2, JDK 21); Spring Boot 4.0.6,
 Tiko 0.2.2. **Fixed fixtures** (generous settles) and **fresh broker per trial**

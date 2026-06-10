@@ -23,7 +23,9 @@ tests), with hooks for **efficiency** and **code quality**.
 
 ## Headline results — Stage 1
 
-Model: **Claude Opus 4.8** (2026-06). N=5 per cell (spring3 is a single reference
+Model: **Claude Sonnet 4.6** contestants, orchestrated by Claude Opus 4.8 (2026-06;
+corrected — an earlier revision mis-attributed contestants to Opus 4.8; see the
+`model` column in `results/metrics.csv`). N=5 per cell (spring3 is a single reference
 run). Compliance = oracle scenarios passed / 7. Fixed fixtures, fresh broker per
 trial. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
 
@@ -39,7 +41,7 @@ trial. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
 1. **Version recency dominates.** The *same model* scored 100% on Spring Boot 3.3.5
    and a median **0%** on 4.0.6. A single major-version bump — not a worse model,
    not a worse framework — caused it. The dangerous part is *silent* failure:
-   Boot-4 apps compiled, ran, and emitted nothing. Even the current frontier model
+   Boot-4 apps compiled, ran, and emitted nothing. A current-generation model
    shows this; it's structural to training-on-historical-corpus, and the lag is
    *longer* than "time since cutoff" because the old version dominates the corpus.
 
