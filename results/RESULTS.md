@@ -37,6 +37,36 @@ JVMs from build smoke-runs had contaminated the shared topics (the tell was a
 bogus `spring3 = 29%`); the grader now kills stray JVMs per trial
 (`BENCH_KILL_STRAY_JAVA=1`) and the clean re-grade restored `spring3 = 100%`.
 
+### Efficiency — build cost (output tokens per contestant build)
+
+Extracted from the run transcripts (`conformance/extract-telemetry.js` →
+`results/efficiency.csv`; also backfilled into `metrics.csv`). Averages exclude
+failed/overloaded dispatches (0-token rows). **Tokens are the reliable metric;
+`duration_ms` is NOT** (some dispatches spanned a session pause, inflating wall-time).
+
+Average output tokens per build (k):
+
+| Model | spring | spring3 | tiko | tiko-mcp |
+|---|---|---|---|---|
+| Sonnet 4.6 | 36k | 34k | 110k | 102k |
+| Fable 5 | 67k | 46k | 118k | 81k |
+| Opus 4.8 | 71k | 51k | 113k | 124k |
+
+**Reading it:**
+- **Out-of-corpus tax is large.** Building on Tiko costs **~1.6–3× the tokens of
+  Spring** for every model (Sonnet 110k vs 36k ≈ 3×; Opus 113k vs 71k ≈ 1.6×;
+  Fable 118k vs 67k ≈ 1.8×) — the agent must reverse-engineer the `@KafkaSource`/
+  `@KafkaSink` API from jars, dodge the poison-message seek-back trap, and hand-build
+  JDBC, versus Spring's familiar starters. Tiko reaches *similar compliance* but at a
+  real effort premium.
+- **Cheap ≠ good — compare only at equal compliance.** Sonnet's low Spring cost (36k)
+  is *cheap failure*: it gave up fast on Boot 4.0.6 (median 0%). Fable/Opus spent ~2×
+  (67–71k) and actually succeeded (100%). Low tokens with low compliance is the worst
+  cell, not the best.
+- **Fable is also the most *efficient* where it's hardest.** On tiko-mcp it used the
+  fewest tool-calls per build (~33 avg, vs Opus ~68, Sonnet ~101) while scoring
+  highest — Sonnet flailed most (most iterations, lowest compliance).
+
 The section below is the original Sonnet 4.6 deep-dive (now one column above).
 
 ---
