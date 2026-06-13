@@ -23,27 +23,42 @@ tests), with hooks for **efficiency** and **code quality**.
 
 ## Headline results — Stage 1
 
-Model: **Claude Sonnet 4.6** contestants, orchestrated by Claude Opus 4.8 (2026-06;
-corrected — an earlier revision mis-attributed contestants to Opus 4.8; see the
-`model` column in `results/metrics.csv`). N=5 per cell (spring3 is a single reference
-run). Compliance = oracle scenarios passed / 7. Fixed fixtures, fresh broker per
-trial. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
+The sharpest result is **version recency**, isolated cleanly: same spec, same fixed
+scaffold, the **only** change is the Spring Boot version. Graded by the external oracle
+(compliance = scenarios passed / 7), fresh broker per trial, contestants run as isolated
+agents on the named model. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
 
-| Cell | Framework / version | Median compliance | Notes |
-|---|---|---|---|
-| spring | Spring Boot **4.0.6** | **0%** (1/5 correct) | brand-new major; model writes Boot-3 idioms that silently no-op |
-| spring3 | Spring Boot **3.3.5** | **100%** (n=1, first try) | a version the model knows → nails it |
-| tiko | Tiko **0.2.2** | **86%** | out-of-corpus framework; carried by bundled in-repo guidance |
-| tiko-mcp | Tiko **0.2.2** + MCP | **86%** | identical to `tiko` here (see finding 3) |
+| Spring Boot version | Claude Sonnet 4.6 | Claude Opus 4.8 |
+|---|---|---|
+| **3.3.5** — in the training corpus | **100%** (3/3) | **100%** (3/3) |
+| **4.0.6** — current major (~6 months old) | **0%** (0/5) | **0%** (0/5) |
+
+A cheap model *and* the frontier reasoning model both fail the new major completely —
+while both ace the version they know. (This fixed-scaffold re-run supersedes an earlier
+core-only run that under-reported the effect; see `results/RESULTS.md` → "Clean re-run"
+for the reconciliation and the high-variance caveat on the Boot-4 number.)
+
+On the other axis — an out-of-training-corpus framework that ships in-repo agent docs
+(Sonnet 4.6 contestants, N=5):
+
+| Framework | Median compliance | Notes |
+|---|---|---|
+| Tiko **0.2.2** | **86%** | out-of-corpus; carried by bundled in-repo guidance |
+| Tiko **0.2.2** + MCP | **86%** | identical to plain Tiko here (see finding 3) |
 
 ### What it found
 
-1. **Version recency dominates.** The *same model* scored 100% on Spring Boot 3.3.5
-   and a median **0%** on 4.0.6. A single major-version bump — not a worse model,
-   not a worse framework — caused it. The dangerous part is *silent* failure:
-   Boot-4 apps compiled, ran, and emitted nothing. A current-generation model
-   shows this; it's structural to training-on-historical-corpus, and the lag is
-   *longer* than "time since cutoff" because the old version dominates the corpus.
+1. **Version recency dominates — and a bigger model doesn't fix it.** The same spec
+   scored **100% on Spring Boot 3.3.5 and 0% on 4.0.6 — for *both* Sonnet 4.6 and
+   Opus 4.8.** Not a worse model (the frontier reasoning model failed too), not a worse
+   framework — one major-version bump. The failure is *silent and idiomatic*: every
+   Boot-4 build compiled, but the models reflexively wrote the **Boot-3 Kafka idiom**
+   (bare `spring-kafka` + trust auto-configuration) that Boot 4 reorganized away — so
+   apps either failed to start (no `KafkaTemplate` bean) or booted and exited consuming
+   nothing. None of 10 clean-run trials reached for the new `spring-boot-starter-kafka`
+   that fixes it. Recency bites at *version choice* (given freedom, the models downgrade —
+   Sonnet 5/5) **and** at *execution* (forced onto the new major, they use the old
+   major's muscle memory).
 
 2. **An unknown framework that ships its own docs can beat a known framework's
    unknown new version.** Tiko (essentially absent from training) reached 86%
@@ -60,8 +75,11 @@ trial. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
    trials died at startup because the model used kebab-case / Spring-style config
    keys that Tiko's `@Configuration` records reject. The single most actionable fix.
 
-> These are directional results: small N, one model, one point in time, and some
-> early prompts carried hints. See `results/RESULTS.md` → "Caveats / validity".
+> These are directional results: small N and a few points in time. The Boot-4
+> compliance *number* is high-variance (success hinges on whether the model hand-wires
+> Kafka vs. trusts autoconfig) — the robust finding is the qualitative gap, reproduced
+> across 26 Spring trials, two models, and two scaffolds. See `results/RESULTS.md` →
+> "Clean re-run" and "Caveats / validity".
 
 ## How it works
 
@@ -100,6 +118,7 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Protocol, Stage-1 spec, fixtures, conformance oracle (tests green)
 - [x] Golden scaffolds (Spring Boot 4.0.6 + 3.3.5 reference; Tiko 0.2.2)
 - [x] Stage-1 run: spring, tiko, tiko-mcp (5x) + spring3 reference — `results/RESULTS.md`
+- [x] Clean Spring re-run, fixed scaffold, Sonnet 4.6 + Opus 4.8 (version-recency isolated)
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage-2 spec (full-text search)

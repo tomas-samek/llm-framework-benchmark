@@ -1,8 +1,11 @@
 # Spring Boot golden scaffold
 
 Generated once, committed untouched. Every trial copies this tree.
-Core only — the trial agent adds spring-kafka / data-jpa / web / h2 / lucene
-itself, mirroring Tiko's opt-in model.
+Near-core — the trial agent adds spring-kafka / data-jpa / web / h2 / lucene
+itself, mirroring Tiko's opt-in model. The one battery included is
+`spring-boot-starter-json` (Jackson + an auto-configured `ObjectMapper` bean),
+to mirror the fact that Tiko's `tiko-kafka` module ships its JSON serializer
+bundled with the transport. See the "starter-json" note below.
 
 ## Command (run from `scaffolds/spring/`)
 
@@ -17,7 +20,7 @@ Using curl against Spring Initializr (no Spring CLI required):
         -d artifactId=notify \
         -d name=notify \
         -d packageName=eu.bench.notify \
-        -d dependencies= \
+        -d dependencies=json \
         -o notify.zip
     unzip notify.zip -d notify && rm notify.zip
 
@@ -31,8 +34,21 @@ Using curl against Spring Initializr (no Spring CLI required):
 > Central artifact is published without the `.RELEASE` suffix, so `4.0.6` was used.
 > Pinned bootVersion: 4.0.6 (current Initializr default as of generation).
 
-`dependencies=` (empty) yields core only: `spring-boot-starter` +
+`dependencies=json` yields `spring-boot-starter` + `spring-boot-starter-json` +
 `spring-boot-starter-test`.
+
+> **Note — starter-json (added 2026-06-13):** the original scaffold was generated
+> with `dependencies=` (empty), i.e. core-only. That shipped **no Jackson and no
+> `ObjectMapper` bean**, so any contestant injecting an `ObjectMapper` failed at
+> startup — diagnosed as 7/10 fail-to-start in the `spring-free` arm and several
+> failures in the forced runs. That was a **scaffold gap**, not a framework signal,
+> and it was *asymmetric*: Tiko's `tiko-kafka` module bundles a JSON serializer, so
+> a Tiko contestant got JSON for free with the transport while a Spring contestant
+> did not. `spring-boot-starter-json` restores symmetry. On Boot 4 it brings
+> **Jackson 3** (`tools.jackson`), whose auto-configured bean is *not* the
+> `com.fasterxml.jackson.databind.ObjectMapper` (Jackson 2) type — so a remaining
+> `ObjectMapper` mismatch is now a genuine Jackson 2→3 *version-recency* signal,
+> which is exactly what this benchmark is trying to isolate.
 
 ## After generation
 

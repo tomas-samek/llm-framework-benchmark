@@ -15,11 +15,15 @@ vector:
 | tiko-mcp (0.2.2) | 86% `0 0 86 86 100` | 100% `0 100 100 100 100` | 86% `0 0 86 86 100` |
 
 **Reading it:**
-- **Version-recency is model-generation-dependent.** Spring Boot 4.0.6 — a brand-new
-  major — was a near-total wall for **Sonnet 4.6** (median 0%, only 1/5 working) but
-  **Fable 5 and Opus 4.8 both clear it** (median 100%). The blind spot is real but
-  closes as newer models absorb the new major. (spring3 = 3.3.5, a version all three
-  know, is 100% across the board — the control.)
+- **Version-recency on Spring Boot 4.0.6.** In *this* (confounded, core-only) table
+  Sonnet 4.6 was a near-total wall (median 0%) while Fable 5 / Opus 4.8 looked like they
+  cleared it (median 100%). **⚠️ SUPERSEDED:** the clean fixed-scaffold re-run (see
+  "Clean re-run" below) shows the Opus 100% here was driven by the few trials that
+  *hand-wired* Kafka; with the scaffold confound removed, **both Opus 4.8 and Sonnet 4.6
+  score 0/5 on Boot 4.0.6** and 100% on 3.3.5. So the blind spot does **not** simply
+  "close with newer models" — recency bites Opus too. Treat this row as the confounded
+  first pass; the fixed-scaffold section is authoritative for the Spring version question.
+  (spring3 = 3.3.5 = 100% across the board remains the control.)
 - **Fable 5 is the strongest here**, 100% median in every cell. Opus 4.8 matches it on
   Spring but trails on Tiko (median 86 vs 100); Sonnet trails on Spring-4.
 - **Tiko (out-of-corpus framework) holds up well across models** (86–100% median),
@@ -66,6 +70,99 @@ Average output tokens per build (k):
 - **Fable is also the most *efficient* where it's hardest.** On tiko-mcp it used the
   fewest tool-calls per build (~33 avg, vs Opus ~68, Sonnet ~101) while scoring
   highest — Sonnet flailed most (most iterations, lowest compliance).
+
+### ⚠️ Spring scaffold confound (discovered 2026-06-13 — read before trusting Spring compliance)
+
+The Spring golden scaffold is **core-only** (generated with no starters, to mirror
+Tiko's minimal start). The base `spring-boot-starter` ships **no auto-wired
+`ObjectMapper` bean**. Apps that inject `ObjectMapper` assuming it's present (the norm
+in a `-web` app) **fail at startup** — on Boot 3.x and 4.x alike. Diagnosed from the
+`spring-free` arm: **7 of 10 apps failed to start** (mostly
+`No qualifying bean of type ...ObjectMapper`); of the 3 that *did* start, only 2 passed.
+The same failure appears in the original forced-Spring runs (Sonnet's forced-4.0.6
+"missing ObjectMapper bean" trials).
+
+**Consequence:** the Spring compliance numbers (all cells) **conflate two variables** —
+"can the model handle the Boot version" *and* "did the model wire Jackson into a
+deliberately-minimal scaffold." **RESOLVED 2026-06-13** by the fixed-scaffold re-run
+below (`spring-fix` / `spring3-fix`, both with `spring-boot-starter-json`): with the
+Jackson gap removed, the version-recency effect is **confirmed and sharpened** — see
+"Clean re-run" below.
+
+**Unaffected:** the version-*choice* result (the "gravity well": Sonnet 5/5 downgraded
+off 4.0.6, Opus 4/5 kept it — `results/spring-free-versions.csv`) is about which version
+the model *picks*, independent of the Jackson wiring, and stands.
+
+**Why `spring-boot-starter-json` and not `spring-boot-starter-web` (a deliberate choice).**
+There is no umbrella "microservice" starter in Spring Boot — starters are composable
+building blocks. The habitual reach is `-web`, but that is specifically the HTTP/servlet
+stack (Spring MVC + embedded Tomcat); this service is a **headless Kafka consumer with no
+HTTP endpoints**, so `-web` would bolt an idle Tomcat onto an app that never serves a
+request. `spring-boot-starter-json` is the minimal, dedicated JSON building block (Jackson
++ auto-configured `ObjectMapper`) that `-web` itself depends on. It does **not** alter the
+version-recency probe — both starters resolve the *same* Jackson per Boot version (Jackson
+3 on 4.0.6, Jackson 2 on 3.3.5) — and keep-alive is handled regardless by `spring-kafka`'s
+non-daemon listener thread, so no web server is needed to keep the process up. `-json` is
+therefore the honest minimal stack for a Kafka service and gives the cleanest isolation.
+
+### ✅ Clean re-run — version-recency isolated (fixed scaffold, 2026-06-13)
+
+With the Jackson confound removed (both scaffolds ship `spring-boot-starter-json` →
+an auto-configured `ObjectMapper`), the **only** difference between these two cells is
+the Spring Boot version. Same spec, same fixed scaffold, contestants instructed to keep
+the pinned Boot version. Compliance (oracle scenarios passed / 7):
+
+| Cell | Boot / Jackson | Sonnet 4.6 | Opus 4.8 |
+|---|---|---|---|
+| `spring3-fix` (control, known version) | 3.3.5 / Jackson 2 | **100 / 100 / 100** | **100 / 100 / 100** |
+| `spring-fix` (current major)           | 4.0.6 / Jackson 3 | **0 / 0 / 0 / 0 / 0** | **0 / 0 / 0 / 0 / 0** |
+
+**Every one of the 16 trials built green** (BUILD SUCCESS) and **every Boot-4 build
+correctly handled the Jackson 2→3 move** (`tools.jackson` / Spring Kafka's
+`JacksonJsonSerializer`) — so this is *not* the old scaffold gap. The failure simply
+**relocated from build-time to runtime**, with one root cause.
+
+**Root cause — Spring Boot 4.0's Kafka auto-configuration reorganization.** Boot 4 split
+Kafka support into `spring-boot-starter-kafka` with relocated autoconfig. Both models,
+trained predominantly on Boot 3, default to the **Boot-3 idiom**: depend on bare
+`spring-kafka` and trust autoconfig for `KafkaTemplate` and `@KafkaListener` containers.
+In Boot 4 that idiom silently no longer wires. Two failure modes, same cause (verified
+from `app.log` + source of all 10 Boot-4 trials):
+
+- **6/10 fail-to-start** — relied on autoconfig for the producer →
+  `No qualifying bean of type KafkaTemplate<String,String>` → `APPLICATION FAILED TO START`.
+- **4/10 boot-and-exit (silent)** — hand-wired the *producer* (so the context starts)
+  but left the *consumer* side to autoconfig → listener containers never start → the JVM
+  has no non-daemon thread, exits ~20 ms after "Started", consumes/emits nothing
+  (oracle: "no notification with this key" ×7).
+- **0/10 used the new `spring-boot-starter-kafka`** — the actual Boot-4 fix.
+
+The `spring3-fix` control proves it is the version, not the harness or the spec: the
+*same* Boot-3 autoconfig idiom wires fully on 3.3.5 (`Subscribed to topic(s)…`,
+`groupId=notify`) → 100% in the same grader batches.
+
+**Reconciliation with the (confounded) original run.** The original "Opus clears Boot 4"
+successes were not autoconfig wins — they were the trials that **fully hand-wired** Kafka
+or used the new starter: `o8-03` used `spring-boot-starter-kafka`; `o8-04`/`o8-05`
+hand-wired producer + consumer factories + `KafkaTemplate`. The original 0% trials
+(`o8-01`/`o8-02`) and *all 10* clean-run trials leaned on the broken autoconfig idiom.
+So "success on Boot 4" = "the model distrusted its autoconfig priors and hand-wired (or
+found the new starter)," which both models do **inconsistently**.
+
+**Honest caveat on the number.** Boot-4 compliance is **high-variance**, because it hinges
+on that hand-wire-vs-autoconfig choice. Pooling both runs (core-only original + fixed
+re-run): Boot 4.0.6 ≈ **Opus 3/10, Sonnet 1/10**; Boot 3.3.5 = **100%** throughout. N=5
+per cell cannot pin a precise Boot-4 percentage — but the **qualitative** result is robust
+and reproduced across 26 Spring trials and two scaffolds: *the known version works every
+time; the 6-month-old major frequently breaks both frontier models, via stale framework
+idioms rather than syntax they can't write.*
+
+**Bottom line.** This sharpens the gravity-well story. It is not only that models *pick*
+the version they know (`spring-free-versions.csv`: Sonnet downgrades 5/5, Opus keeps 4.0.6
+4/5) — it is that **even when forced onto the current major, both models execute it with
+the previous major's muscle memory.** Recency bites at choice *and* at execution.
+
+---
 
 The section below is the original Sonnet 4.6 deep-dive (now one column above).
 

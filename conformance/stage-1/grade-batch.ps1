@@ -88,7 +88,7 @@ foreach ($t in $Trials) {
     }
 
     # metrics row: timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agent_turns,tool_calls
-    $trialNum = $trialId -replace '^f5-', ''
+    $trialNum = $trialId -replace '^[A-Za-z0-9]+-', ''
     $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     Add-Content -Path $Metrics -Value ("{0},{1},{2},stage-1,{3},{4},{5},,," -f $ts, $Model, $fw, $trialNum, $compliance, $elapsed)
 
