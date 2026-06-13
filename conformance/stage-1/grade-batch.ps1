@@ -52,6 +52,16 @@ foreach ($t in $Trials) {
         docker exec bench-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic $topic --partitions 1 --replication-factor 1 | Out-Null
     }
 
+    # Guard against cross-trial contamination: a contestant app left alive by an
+    # earlier build smoke-run will reconnect to this broker and pollute the topics
+    # (extra consumers on purchases / extra producers on notifications), corrupting
+    # the oracle's reads. On a dedicated bench box, kill stray JVMs before starting
+    # this trial's app. Opt-in (set BENCH_KILL_STRAY_JAVA=1) since it kills ALL java.
+    if ($env:BENCH_KILL_STRAY_JAVA -eq '1') {
+        Get-Process java, mvn -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+    }
+
     $started = Get-Date
     $appOut = Join-Path $trialDir 'app.log'
     $appErr = Join-Path $trialDir 'app.err.log'
