@@ -1,4 +1,47 @@
-# Stage-1 results — 5× per category (authoritative)
+# Stage-1 results
+
+## Multi-model comparison (added 2026-06-13)
+
+Same harness, spec, scaffolds, and external oracle; N=5 per cell (spring3 is a
+single Boot-3.3.5 reference). Contestants run as isolated subagents on the named
+model. **Median compliance** (oracle scenarios passed / 7), with the raw 5-trial
+vector:
+
+| Cell | Sonnet 4.6 | Fable 5 | Opus 4.8 |
+|---|---|---|---|
+| spring (Spring Boot **4.0.6**) | **0%** `0 0 0 0 100` | **100%** `100×5` | **100%** `0 0 100 100 100` |
+| spring3 (Spring Boot 3.3.5) | 100% | 100% | 100% |
+| tiko (0.2.2) | 86% `0 86 86 100 0` | 100% `100×5` | 86% `86 86 86 86 100` |
+| tiko-mcp (0.2.2) | 86% `0 0 86 86 100` | 100% `0 100 100 100 100` | 86% `0 0 86 86 100` |
+
+**Reading it:**
+- **Version-recency is model-generation-dependent.** Spring Boot 4.0.6 — a brand-new
+  major — was a near-total wall for **Sonnet 4.6** (median 0%, only 1/5 working) but
+  **Fable 5 and Opus 4.8 both clear it** (median 100%). The blind spot is real but
+  closes as newer models absorb the new major. (spring3 = 3.3.5, a version all three
+  know, is 100% across the board — the control.)
+- **Fable 5 is the strongest here**, 100% median in every cell. Opus 4.8 matches it on
+  Spring but trails on Tiko (median 86 vs 100); Sonnet trails on Spring-4.
+- **Tiko (out-of-corpus framework) holds up well across models** (86–100% median),
+  carried by its in-repo guidance — a brand-new framework is *not* dramatically harder
+  than a brand-new framework *version*.
+- **MCP added no median lift** in any model (tiko == tiko-mcp medians), consistent with
+  the earlier finding that the validation gate targeted wiring, which models already got
+  right; the residual tiko-mcp 0%s are single-trial failures (see caveats).
+
+**Caveats:** N=5 (directional, not significant); the tiko-mcp 0% outliers
+(Fable f5-04; Opus o8-04/o8-05) are unverified single-trial misses — likely a
+real wiring/startup miss in those specific apps, not a model trait, pending a solo
+re-grade. An earlier Opus grading pass was discarded as invalid: stray contestant
+JVMs from build smoke-runs had contaminated the shared topics (the tell was a
+bogus `spring3 = 29%`); the grader now kills stray JVMs per trial
+(`BENCH_KILL_STRAY_JAVA=1`) and the clean re-grade restored `spring3 = 100%`.
+
+The section below is the original Sonnet 4.6 deep-dive (now one column above).
+
+---
+
+# Stage-1 results — Sonnet 4.6 deep-dive (5× per category)
 
 **Date:** 2026-06-08
 **Model (CORRECTED 2026-06-10):** contestant agents ran on **Claude Sonnet 4.6**

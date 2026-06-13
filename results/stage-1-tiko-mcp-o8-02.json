@@ -1,0 +1,41 @@
+{
+  "compliance" : 0.8571428571428571,
+  "passed" : 6,
+  "total" : 7,
+  "results" : [ {
+    "scenario" : "AC1",
+    "key" : "buy1",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC2",
+    "key" : "buy2",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC3",
+    "key" : "buy3",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC4",
+    "key" : "buy4",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC5",
+    "key" : "buy5",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyA",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyB",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":8999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":8999,\"occurredAt\":\"2026-06-07T10:21:00Z\"} but got {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:21:00Z\"}"
+  } ]
+}
