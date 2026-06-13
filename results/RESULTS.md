@@ -30,9 +30,9 @@ vector:
   right; the residual tiko-mcp 0%s are single-trial failures (see caveats).
 
 **Caveats:** N=5 (directional, not significant); the tiko-mcp 0% outliers
-(Fable f5-04; Opus o8-04/o8-05) are unverified single-trial misses — likely a
-real wiring/startup miss in those specific apps, not a model trait, pending a solo
-re-grade. An earlier Opus grading pass was discarded as invalid: stray contestant
+(Fable f5-04; Opus o8-04/o8-05) were **re-graded and reproduced 0%** — they are
+real wiring/runtime faults in those specific apps (built green, but emit nothing
+or wrong at runtime), not harness artifacts or model traits. An earlier Opus grading pass was discarded as invalid: stray contestant
 JVMs from build smoke-runs had contaminated the shared topics (the tell was a
 bogus `spring3 = 29%`); the grader now kills stray JVMs per trial
 (`BENCH_KILL_STRAY_JAVA=1`) and the clean re-grade restored `spring3 = 100%`.

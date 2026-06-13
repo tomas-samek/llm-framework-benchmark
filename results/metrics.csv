@@ -45,3 +45,5 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-06-13T15:15:15Z,claude-opus-4-8,tiko-mcp,stage-1,02,86,87,128988,,79
 2026-06-13T15:17:04Z,claude-opus-4-8,tiko-mcp,stage-1,03,100,87,131374,,81
 2026-06-13T17:09:33Z,claude-fable-5,tiko-mcp,stage-1,04,0,88,,,26
+2026-06-13T17:11:29Z,claude-opus-4-8,tiko-mcp,stage-1,04,0,88,,,
+2026-06-13T17:13:26Z,claude-opus-4-8,tiko-mcp,stage-1,05,0,88,,,
