@@ -10,6 +10,9 @@ The benchmark grades each run on **compliance** (does it actually pass the
 acceptance scenarios, judged by an independent harness — not the agent's own
 tests), with hooks for **efficiency** and **code quality**.
 
+📝 **Write-up:** [*Your AI coding agent has a blind spot — and a bigger model doesn't fix it*](https://www.linkedin.com/pulse/your-ai-coding-agent-has-blind-spot-bigger-model-doesnt-tom%25C3%25A1%25C5%25A1-samek-iwlyf)
+— the story behind these numbers (LinkedIn). Feedback and your own results welcome.
+
 > **Note on Tiko — intentionally unknown to LLMs.** Tiko DI is *purposefully*
 > developed and used as an **out-of-training-corpus** framework. Its premise is
 > that a framework can be AI-friendly **without** relying on the model's prior
