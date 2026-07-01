@@ -1,5 +1,11 @@
 # Stage-1 results
 
+> **Start here:** the authoritative version-recency + Tiko-0.3.0 result (three model
+> generations — Sonnet 4.6, Opus 4.8, Sonnet 5) is in
+> ["Three-model extension" below](#-three-model-extension--sonnet-5-added-tiko-030-added-2026-07-01).
+> Everything above it in this file is superseded first-pass / confounded data, kept for
+> the audit trail.
+
 ## Multi-model comparison (added 2026-06-13)
 
 Same harness, spec, scaffolds, and external oracle; N=5 per cell (spring3 is a
@@ -161,6 +167,73 @@ idioms rather than syntax they can't write.*
 the version they know (`spring-free-versions.csv`: Sonnet downgrades 5/5, Opus keeps 4.0.6
 4/5) — it is that **even when forced onto the current major, both models execute it with
 the previous major's muscle memory.** Recency bites at choice *and* at execution.
+
+### 🔺 Three-model extension — Sonnet 5 added, Tiko 0.3.0 added (2026-07-01)
+
+**Sonnet 5 makes the version-recency result unanimous, not just high-variance.** Same
+fixed scaffold, N=5, forced version:
+
+| Cell | Boot / Jackson | Sonnet 4.6 | Opus 4.8 | Sonnet 5 |
+|---|---|---|---|---|
+| `spring3-fix` (control) | 3.3.5 / Jackson 2 | 100/100/100 (n=3) | 100/100/100 (n=3) | **100 100 100 0 100** |
+| `spring-fix` (current major) | 4.0.6 / Jackson 3 | 0/0/0/0/0 | 0/0/0/0/0 | **0 0 0 0 0** |
+
+**Three model generations, 15 independent `spring-fix` trials, zero passes.** Sonnet 5
+is not the newest-generation exception the "high-variance" caveat above left open — it
+reproduces the identical failure at the identical rate. Root cause, re-verified on two
+Sonnet-5 trials: **still the missing `KafkaTemplate` bean**
+(`No qualifying bean of type 'org.springframework.kafka.core.KafkaTemplate<...>'`) —
+unchanged from Sonnet 4.6 / Opus 4.8, *even in trials that correctly adopted Jackson 3 and
+Spring Kafka's new `JacksonJsonSerializer`*. Getting the JSON layer right does not help;
+**none of the 15 clean-run trials, across all three models, ever added
+`spring-boot-starter-kafka`** (the actual Boot-4 fix). Sonnet 5 tried three distinct
+JSON strategies (adopt Jackson 3 directly; adopt Spring Kafka's new `JacksonJsonSerializer`/
+`JacksonJsonDeserializer`; or resist Jackson 3 by pinning classic Jackson 2 alongside it) —
+all three still hit the same Kafka-autoconfig wall.
+
+**Tiko 0.3.0 (Opus 4.8 + Sonnet 5, N=5 each), clean re-run:**
+
+| Trial | Opus 4.8 | Sonnet 5 |
+|---|---|---|
+| 01–05 | 100 100 100 **0** 100 | 100 **0** 100 100 100 |
+| median | **100%** | **100%** |
+
+Both land at 100% median with one real failure each (different trials). The Opus failure
+(`o-04`) is a `ConfigValidationException` from kebab-case keys (`app.h2-url`) not matching
+the camelCase binding (`app.h2Url`) — **independently reproducing issue
+[#404](https://github.com/tomas-samek/tiko-di/issues/404)**, filed from static analysis
+before this run and now confirmed by live failure.
+
+**Grading erratum (2026-07-01):** an earlier attempt to grade `tiko-030` produced
+`0/0/0` for three trials whose apps had, in fact, started and were consuming normally.
+Cause: the grading invocation was piped through an intermediate `grep` filter that
+interfered with the oracle JVM's own stdout/exit, so the oracle's result JSON was never
+written and compliance silently defaulted to 0. This was a **harness/methodology bug**,
+not a Tiko fault — re-running the identical trials with a clean (unfiltered) output
+redirect produced the 100/100/100/0/100 result above, confirmed against a byte-identical
+manual reproduction of trial `o-01` (7/7, 100%). Lesson for this project: never pipe a
+grading invocation through a filtering command; redirect to a file and grep the file
+afterward.
+
+**Token cost — a bigger/newer model is not a cheaper one.** Average output tokens per
+build:
+
+| Model | spring-fix (Boot 4.0.6) | spring3-fix (Boot 3.3.5) | tiko-030 (Tiko 0.3.0) |
+|---|---|---|---|
+| Sonnet 4.6 | 45.0k | 36.5k | — |
+| Opus 4.8 | 52.9k | 47.1k | 106.0k |
+| Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
+
+Sonnet 5 costs **~1.7–1.9× Opus 4.8** and **~1.9× Sonnet 4.6** on the identical tasks,
+consistently across all three cells (not one outlier trial) — while landing at the same
+or statistically indistinguishable compliance. On `tiko-030` specifically, all 5 Sonnet-5
+trials independently rediscovered the same undocumented facts already filed as
+[#401](https://github.com/tomas-samek/tiko-di/issues/401)–[#404](https://github.com/tomas-samek/tiko-di/issues/404)
+(the `@KafkaSource`/`@EventTrigger` contract, the `poison-record-policy` default,
+config-key casing) via deeper bytecode-level exploration (`javap -p -c` on generated
+validators) than earlier models used — more thorough, and markedly more expensive.
+**A newer/larger model does not fix the version-recency blind spot and does not fix the
+Tiko documentation-discovery cost — it can make the second one worse.**
 
 ---
 

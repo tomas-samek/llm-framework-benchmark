@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>eu.bench.notify</groupId>
+    <artifactId>notify</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <tiko.version>0.3.0</tiko.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.tomas-samek</groupId>
+                <artifactId>tiko-bom</artifactId>
+                <version>${tiko.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Core: API + runtime container. tiko-runtime is at compile scope because the
+             annotation processor generates code that imports io.tiko.runtime classes
+             (e.g. DefaultEventExecutorFactory). -->
+        <dependency>
+            <groupId>io.github.tomas-samek</groupId>
+            <artifactId>tiko-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.tomas-samek</groupId>
+            <artifactId>tiko-runtime</artifactId>
+        </dependency>
+
+        <!-- Optional modules. Uncomment any you need; the tiko-bom pins all versions. -->
+
+        <!-- Typed YAML configuration injection via @Configuration records. -->
+        <!--
+        <dependency>
+            <groupId>io.github.tomas-samek</groupId>
+            <artifactId>tiko-config</artifactId>
+        </dependency>
+        -->
+
+        <!-- JUnit 5 testing: @TikoTest, @TestComponent, RecordingEventBus. -->
+        <!--
+        <dependency>
+            <groupId>io.github.tomas-samek</groupId>
+            <artifactId>tiko-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        -->
+
+        <!-- Kafka transport: @KafkaSource / @KafkaSink, JSON serializer. Add
+             tiko-kafka-processor to <annotationProcessorPaths> below if enabled. -->
+        <!--
+        <dependency>
+            <groupId>io.github.tomas-samek</groupId>
+            <artifactId>tiko-kafka</artifactId>
+        </dependency>
+        -->
+
+        <!-- Route Tiko's System.Logger output through slf4j (+ your slf4j backend
+             of choice — e.g. logback, log4j-slf4j2-impl). -->
+        <!--
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk-platform-logging</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+        -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                    <!-- Required for JDK 23+: annotation processing is silently skipped without it. -->
+                    <proc>full</proc>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>io.github.tomas-samek</groupId>
+                            <artifactId>tiko-processor</artifactId>
+                            <version>${tiko.version}</version>
+                        </path>
+                        <!-- Required if tiko-kafka is enabled above. -->
+                        <!--
+                        <path>
+                            <groupId>io.github.tomas-samek</groupId>
+                            <artifactId>tiko-kafka-processor</artifactId>
+                            <version>${tiko.version}</version>
+                        </path>
+                        -->
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <mainClass>eu.bench.notify.Main</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

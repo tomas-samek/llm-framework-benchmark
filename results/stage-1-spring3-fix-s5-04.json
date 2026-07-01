@@ -1,0 +1,41 @@
+{
+  "compliance" : 0.0,
+  "passed" : 0,
+  "total" : 7,
+  "results" : [ {
+    "scenario" : "AC1",
+    "key" : "buy1",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy1\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":2,\"totalCents\":15998,\"occurredAt\":\"2026-06-07T10:15:00Z\"} but got {\"purchaseId\":\"buy1\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":2,\"totalCents\":15998,\"occurredAt\":1.7808273E9}"
+  }, {
+    "scenario" : "AC2",
+    "key" : "buy2",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy2\",\"userId\":\"u-x\",\"userName\":null,\"productId\":\"p-x\",\"productName\":null,\"priceCents\":null,\"currency\":null,\"quantity\":3,\"totalCents\":null,\"occurredAt\":\"2026-06-07T10:16:00Z\"} but got {\"purchaseId\":\"buy2\",\"userId\":\"u-x\",\"userName\":null,\"productId\":\"p-x\",\"productName\":null,\"priceCents\":null,\"currency\":null,\"quantity\":3,\"totalCents\":null,\"occurredAt\":1.78082736E9}"
+  }, {
+    "scenario" : "AC3",
+    "key" : "buy3",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy3\",\"userId\":\"u-x\",\"userName\":null,\"productId\":\"p2\",\"productName\":null,\"priceCents\":500,\"currency\":\"EUR\",\"quantity\":4,\"totalCents\":2000,\"occurredAt\":\"2026-06-07T10:17:00Z\"} but got {\"purchaseId\":\"buy3\",\"userId\":\"u-x\",\"userName\":null,\"productId\":\"p2\",\"productName\":null,\"priceCents\":500,\"currency\":\"EUR\",\"quantity\":4,\"totalCents\":2000,\"occurredAt\":1.78082742E9}"
+  }, {
+    "scenario" : "AC4",
+    "key" : "buy4",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy4\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:18:00Z\"} but got {\"purchaseId\":\"buy4\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":1.78082748E9}"
+  }, {
+    "scenario" : "AC5",
+    "key" : "buy5",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:19:00Z\"} but got {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":1.78082754E9}"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyA",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buyA\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":\"2026-06-07T10:20:00Z\"} but got {\"purchaseId\":\"buyA\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":7999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":7999,\"occurredAt\":1.7808276E9}"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyB",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":8999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":8999,\"occurredAt\":\"2026-06-07T10:21:00Z\"} but got {\"purchaseId\":\"buyB\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p1\",\"productName\":\"Mechanical Keyboard\",\"priceCents\":8999,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":8999,\"occurredAt\":1.78082766E9}"
+  } ]
+}

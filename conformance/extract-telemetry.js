@@ -43,7 +43,8 @@ function classify(desc, model) {
   if (!/contestant|reference|^Finish tiko-mcp/i.test(d)) return null;        // contestant builds only
   if (/Grade|review|jbang|oracle|harness|scaffold|smoke/i.test(d)) return null; // exclude infra
   let M = model === 'fable' ? 'claude-fable-5' : model === 'opus' ? 'claude-opus-4-8' : model === 'sonnet' ? 'claude-sonnet-4-6' : '';
-  if (!M) M = /F5|f5-/.test(d) ? 'claude-fable-5' : /Opus|o8-/.test(d) ? 'claude-opus-4-8' : 'claude-sonnet-4-6';
+  if (!M) M = /F5|f5-/.test(d) ? 'claude-fable-5' : /Opus|o8-/.test(d) ? 'claude-opus-4-8'
+           : /Sonnet 5|s5-/.test(d) ? 'claude-sonnet-5' : 'claude-sonnet-4-6';
   const fw = /tiko-mcp|Tiko-MCP|Tiko \(MCP\)|Finish tiko-mcp/i.test(d) ? 'tiko-mcp'
     : /spring3|Spring3|3\.3\.5/i.test(d) ? 'spring3'
     : /tiko/i.test(d) ? 'tiko'

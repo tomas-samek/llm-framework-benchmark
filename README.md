@@ -29,60 +29,83 @@ tests), with hooks for **efficiency** and **code quality**.
 The sharpest result is **version recency**, isolated cleanly: same spec, same fixed
 scaffold, the **only** change is the Spring Boot version. Graded by the external oracle
 (compliance = scenarios passed / 7), fresh broker per trial, contestants run as isolated
-agents on the named model. Full write-up: [`results/RESULTS.md`](results/RESULTS.md).
+agents on the named model. Full write-up: [`results/RESULTS.md`](results/RESULTS.md)
+(see "Three-model extension" for the authoritative numbers below).
 
-| Spring Boot version | Claude Sonnet 4.6 | Claude Opus 4.8 |
+| Spring Boot version | Sonnet 4.6 | Opus 4.8 | Sonnet 5 |
+|---|---|---|---|
+| **3.3.5** — in the training corpus | 100% (3/3) | 100% (3/3) | **100%** (4/5) |
+| **4.0.6** — current major (~6 months old) | **0%** (0/5) | **0%** (0/5) | **0%** (0/5) |
+
+**Three model generations, 15 independent trials on the current major, zero passes.**
+Bigger and newer does not fix it — every trial fails on the identical root cause (a
+missing `KafkaTemplate` bean from Boot 4's Kafka autoconfig reorganization), even in
+Sonnet-5 trials that correctly adopted Jackson 3 and Spring Kafka's newest serializer
+classes. Getting the JSON layer right didn't matter: **none of the 15 clean-run trials,
+across all three models, ever reached for `spring-boot-starter-kafka`** — the actual fix.
+
+On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
+now on the latest release:
+
+| Framework | Opus 4.8 | Sonnet 5 |
 |---|---|---|
-| **3.3.5** — in the training corpus | **100%** (3/3) | **100%** (3/3) |
-| **4.0.6** — current major (~6 months old) | **0%** (0/5) | **0%** (0/5) |
+| Tiko **0.3.0** | **100%** median (4/5) | **100%** median (4/5) |
 
-A cheap model *and* the frontier reasoning model both fail the new major completely —
-while both ace the version they know. (This fixed-scaffold re-run supersedes an earlier
-core-only run that under-reported the effect; see `results/RESULTS.md` → "Clean re-run"
-for the reconciliation and the high-variance caveat on the Boot-4 number.)
+Both land at 100% median with one real failure apiece — the Opus failure independently
+reproduces a documentation gap ([tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404))
+filed from static analysis *before* this run and confirmed here by live reproduction.
 
-On the other axis — an out-of-training-corpus framework that ships in-repo agent docs
-(Sonnet 4.6 contestants, N=5):
+**Token cost — a bigger/newer model is not a cheaper one.** Average output tokens per
+build:
 
-| Framework | Median compliance | Notes |
-|---|---|---|
-| Tiko **0.2.2** | **86%** | out-of-corpus; carried by bundled in-repo guidance |
-| Tiko **0.2.2** + MCP | **86%** | identical to plain Tiko here (see finding 3) |
+| Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
+|---|---|---|---|
+| Sonnet 4.6 | 45.0k | 36.5k | — |
+| Opus 4.8 | 52.9k | 47.1k | 106.0k |
+| Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
+
+Sonnet 5 costs **~1.7–1.9×** Opus 4.8 and **~1.9×** Sonnet 4.6 on identical tasks,
+consistently across every cell, for the same or statistically indistinguishable
+compliance.
 
 ### What it found
 
-1. **Version recency dominates — and a bigger model doesn't fix it.** The same spec
-   scored **100% on Spring Boot 3.3.5 and 0% on 4.0.6 — for *both* Sonnet 4.6 and
-   Opus 4.8.** Not a worse model (the frontier reasoning model failed too), not a worse
-   framework — one major-version bump. The failure is *silent and idiomatic*: every
-   Boot-4 build compiled, but the models reflexively wrote the **Boot-3 Kafka idiom**
-   (bare `spring-kafka` + trust auto-configuration) that Boot 4 reorganized away — so
-   apps either failed to start (no `KafkaTemplate` bean) or booted and exited consuming
-   nothing. None of 10 clean-run trials reached for the new `spring-boot-starter-kafka`
-   that fixes it. Recency bites at *version choice* (given freedom, the models downgrade —
-   Sonnet 5/5) **and** at *execution* (forced onto the new major, they use the old
-   major's muscle memory).
+1. **Version recency dominates — and a bigger model doesn't fix it.** Across three
+   model generations and 15 independent trials, Spring Boot 4.0.6 scored **0%** every
+   single time, while the same models scored ~100% on Boot 3.3.5. The failure is
+   *silent and idiomatic*: every Boot-4 build compiled, but the models reflexively wrote
+   the **Boot-3 Kafka idiom** (bare `spring-kafka` + trust auto-configuration) that
+   Boot 4 reorganized away — so apps either failed to start (no `KafkaTemplate` bean) or
+   booted and exited consuming nothing. Recency bites at *version choice* (given
+   freedom, the models downgrade — Sonnet 5/5) **and** at *execution* (forced onto the
+   new major, they use the old major's muscle memory) — and newer generations don't
+   close the gap.
 
-2. **An unknown framework that ships its own docs can beat a known framework's
-   unknown new version.** Tiko (essentially absent from training) reached 86%
-   median because its scaffold ships machine-readable guidance the agent reads at
-   build time; bare Boot-4 shipped neither training familiarity nor docs.
+2. **A bigger/newer model is not a cheaper one.** Sonnet 5 spent 1.7–1.9× the tokens of
+   Opus 4.8 on identical tasks (see table above) for the same compliance — on Tiko it
+   explored deeper (bytecode-level jar inspection) but that thoroughness didn't
+   translate into a better result, just a more expensive one.
 
-3. **The MCP topology server showed no compliance lift *here*** — `tiko` and
-   `tiko-mcp` were identical (`0 0 86 86 100`). The pilot's apparent +57 pts was a
-   fixture-timing artifact. Caveat: the validation gate targeted *wiring*, which the
-   model already got right; it did not target *config*, which is where Tiko actually
-   failed — so this is "MCP-for-wiring = no lift," not a general verdict.
+3. **An out-of-training-corpus framework with in-repo docs holds up well** — Tiko 0.3.0
+   reached 100% median for both Opus 4.8 and Sonnet 5, with the sole failures being
+   already-filed, now-confirmed documentation gaps (kebab-case vs. camelCase config
+   keys), not framework defects.
 
-4. **Tiko's main AI-friendliness issue is strict config validation** — 4/10 Tiko
-   trials died at startup because the model used kebab-case / Spring-style config
-   keys that Tiko's `@Configuration` records reject. The single most actionable fix.
+4. **The MCP topology server showed no compliance lift** in the original Tiko 0.2.2
+   run — `tiko` and `tiko-mcp` were identical (`0 0 86 86 100`). The validation gate
+   targeted *wiring*, which the model already got right; it did not target *config*,
+   where Tiko's failures actually concentrated.
 
-> These are directional results: small N and a few points in time. The Boot-4
-> compliance *number* is high-variance (success hinges on whether the model hand-wires
-> Kafka vs. trusts autoconfig) — the robust finding is the qualitative gap, reproduced
-> across 26 Spring trials, two models, and two scaffolds. See `results/RESULTS.md` →
-> "Clean re-run" and "Caveats / validity".
+5. **Tiko's dominant failure mode is strict config validation** — kebab-case /
+   Spring-style keys that Tiko's `@Configuration` records reject. Filed and tracked as
+   [tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404), among
+   [8 doc-friction issues](https://github.com/tomas-samek/tiko-di/issues/399) this
+   benchmark surfaced and filed directly against Tiko.
+
+> These are directional results: small N and a few points in time per cell. See
+> `results/RESULTS.md` → "Three-model extension" for the full breakdown, the grading
+> erratum (a harness bug that produced false negatives, now corrected), and
+> "Caveats / validity".
 
 ## How it works
 
@@ -119,9 +142,11 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 ## Status
 
 - [x] Protocol, Stage-1 spec, fixtures, conformance oracle (tests green)
-- [x] Golden scaffolds (Spring Boot 4.0.6 + 3.3.5 reference; Tiko 0.2.2)
+- [x] Golden scaffolds (Spring Boot 4.0.6 + 3.3.5 reference; Tiko 0.2.2 → 0.3.0)
 - [x] Stage-1 run: spring, tiko, tiko-mcp (5x) + spring3 reference — `results/RESULTS.md`
 - [x] Clean Spring re-run, fixed scaffold, Sonnet 4.6 + Opus 4.8 (version-recency isolated)
+- [x] Three-model extension: Sonnet 5 added, Tiko bumped to 0.3.0 (unanimous 0% on Boot
+      4.0.6 across all three models; Sonnet 5 token-cost premium measured)
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage-2 spec (full-text search)
