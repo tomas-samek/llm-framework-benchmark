@@ -32,59 +32,68 @@ scaffold, the **only** change is the Spring Boot version. Graded by the external
 agents on the named model. Full write-up: [`results/RESULTS.md`](results/RESULTS.md)
 (see "Three-model extension" for the authoritative numbers below).
 
-| Spring Boot version | Sonnet 4.6 | Opus 4.8 | Sonnet 5 |
-|---|---|---|---|
-| **3.3.5** — in the training corpus | 100% (3/3) | 100% (3/3) | **100%** (4/5) |
-| **4.0.6** — current major (~6 months old) | **0%** (0/5) | **0%** (0/5) | **0%** (0/5) |
+| Spring Boot version | Sonnet 4.6 | Opus 4.8 | Sonnet 5 | Fable 5 |
+|---|---|---|---|---|
+| **3.3.5** — in the training corpus | 100% (3/3) | 100% (3/3) | **100%** (4/5) | **100%** (5/5) |
+| **4.0.6** — current major (~6 months old) | **0%** (0/5) | **0%** (0/5) | **0%** (0/5) | **20%** (1/5) |
 
-**Three model generations, 15 independent trials on the current major, zero passes.**
-Bigger and newer does not fix it — every trial fails on the identical root cause (a
-missing `KafkaTemplate` bean from Boot 4's Kafka autoconfig reorganization), even in
-Sonnet-5 trials that correctly adopted Jackson 3 and Spring Kafka's newest serializer
-classes. Getting the JSON layer right didn't matter: **none of the 15 clean-run trials,
-across all three models, ever reached for `spring-boot-starter-kafka`** — the actual fix.
+**Four model generations, 20 independent trials on the current major — exactly one
+pass, and it's the one trial that found the fix.** Nineteen trials failed on the
+identical root cause (a missing `KafkaTemplate` bean from Boot 4's Kafka autoconfig
+reorganization), even when they correctly adopted Jackson 3 and Spring Kafka's newest
+serializer classes. The single pass is a Fable 5 trial that added
+**`spring-boot-starter-kafka`** — the actual Boot-4 fix — explicitly reasoning that
+Boot 4 moved Kafka autoconfig into its own module. Fable *carries* that knowledge but
+retrieved it **1 time in 5**; no other model ever found it. The blind spot weakens with
+model recency; it does not disappear.
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 now on the latest release:
 
-| Framework | Opus 4.8 | Sonnet 5 |
-|---|---|---|
-| Tiko **0.3.0** | **100%** median (4/5) | **100%** median (4/5) |
+| Framework | Opus 4.8 | Sonnet 5 | Fable 5 |
+|---|---|---|---|
+| Tiko **0.3.0** | **100%** median (4/5) | **100%** median (4/5) | **100%** (5/5) |
 
-Both land at 100% median with one real failure apiece — the Opus failure independently
-reproduces a documentation gap ([tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404))
-filed from static analysis *before* this run and confirmed here by live reproduction.
+All at 100% median (Fable sweeps 5/5). The two real failures independently reproduce a
+documentation gap ([tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404))
+filed from static analysis *before* these runs — and five Fable trials live-reproduced
+[tiko-di#400](https://github.com/tomas-samek/tiko-di/issues/400) at compile time and
+self-corrected.
 
-**Token cost — a bigger/newer model is not a cheaper one.** Average output tokens per
-build:
+**Token cost — newer is not automatically cheaper, and expensive is not better.**
+Average output tokens per build:
 
 | Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
 |---|---|---|---|
 | Sonnet 4.6 | 45.0k | 36.5k | — |
 | Opus 4.8 | 52.9k | 47.1k | 106.0k |
 | Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
+| Fable 5 | 54.9k | 49.4k | 107.8k |
 
-Sonnet 5 costs **~1.7–1.9×** Opus 4.8 and **~1.9×** Sonnet 4.6 on identical tasks,
-consistently across every cell, for the same or statistically indistinguishable
-compliance.
+Sonnet 5 costs **~1.7–1.9×** Opus 4.8 on identical tasks for the same compliance —
+while Fable 5 gets the **best results** (only Boot-4 pass, perfect Tiko sweep) at
+**near-lowest cost**. Spending more tokens doesn't buy correctness; current knowledge
+does.
 
 ### What it found
 
-1. **Version recency dominates — and a bigger model doesn't fix it.** Across three
-   model generations and 15 independent trials, Spring Boot 4.0.6 scored **0%** every
-   single time, while the same models scored ~100% on Boot 3.3.5. The failure is
+1. **Version recency dominates — and neither size nor tokens fixes it.** Across four
+   model generations and 20 independent trials, Spring Boot 4.0.6 produced **one**
+   working app, while the same models scored ~100% on Boot 3.3.5. The failure is
    *silent and idiomatic*: every Boot-4 build compiled, but the models reflexively wrote
    the **Boot-3 Kafka idiom** (bare `spring-kafka` + trust auto-configuration) that
    Boot 4 reorganized away — so apps either failed to start (no `KafkaTemplate` bean) or
    booted and exited consuming nothing. Recency bites at *version choice* (given
    freedom, the models downgrade — Sonnet 5/5) **and** at *execution* (forced onto the
-   new major, they use the old major's muscle memory) — and newer generations don't
-   close the gap.
+   new major, they use the old major's muscle memory). The newest model (Fable 5) is the
+   only one that ever produced the fix (`spring-boot-starter-kafka`) — **once in five
+   tries**. The blind spot weakens with model recency; it does not close.
 
-2. **A bigger/newer model is not a cheaper one.** Sonnet 5 spent 1.7–1.9× the tokens of
-   Opus 4.8 on identical tasks (see table above) for the same compliance — on Tiko it
-   explored deeper (bytecode-level jar inspection) but that thoroughness didn't
-   translate into a better result, just a more expensive one.
+2. **Token spend and correctness are uncorrelated here.** Sonnet 5 spent 1.7–1.9× the
+   tokens of Opus 4.8 on identical tasks for the same compliance (deeper bytecode-level
+   exploration that didn't change outcomes), while Fable 5 got the best results of any
+   model at near-lowest cost. What separated models was *what they knew*, not *how hard
+   they worked*.
 
 3. **An out-of-training-corpus framework with in-repo docs holds up well** — Tiko 0.3.0
    reached 100% median for both Opus 4.8 and Sonnet 5, with the sole failures being
@@ -145,8 +154,9 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Golden scaffolds (Spring Boot 4.0.6 + 3.3.5 reference; Tiko 0.2.2 → 0.3.0)
 - [x] Stage-1 run: spring, tiko, tiko-mcp (5x) + spring3 reference — `results/RESULTS.md`
 - [x] Clean Spring re-run, fixed scaffold, Sonnet 4.6 + Opus 4.8 (version-recency isolated)
-- [x] Three-model extension: Sonnet 5 added, Tiko bumped to 0.3.0 (unanimous 0% on Boot
-      4.0.6 across all three models; Sonnet 5 token-cost premium measured)
+- [x] Multi-model extension: Sonnet 5 + Fable 5 added, Tiko bumped to 0.3.0 (1/20 pass
+      on Boot 4.0.6 across four models — the one trial that found the new starter;
+      per-model token costs measured)
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage-2 spec (full-text search)

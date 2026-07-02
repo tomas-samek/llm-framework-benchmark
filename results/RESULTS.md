@@ -1,8 +1,8 @@
 # Stage-1 results
 
-> **Start here:** the authoritative version-recency + Tiko-0.3.0 result (three model
-> generations — Sonnet 4.6, Opus 4.8, Sonnet 5) is in
-> ["Three-model extension" below](#-three-model-extension--sonnet-5-added-tiko-030-added-2026-07-01).
+> **Start here:** the authoritative version-recency + Tiko-0.3.0 result (four model
+> generations — Sonnet 4.6, Opus 4.8, Sonnet 5, Fable 5) is in
+> ["Multi-model extension" below](#-multi-model-extension--sonnet-5--fable-5-added-tiko-030-added-2026-07-0102).
 > Everything above it in this file is superseded first-pass / confounded data, kept for
 > the audit trail.
 
@@ -168,41 +168,58 @@ the version they know (`spring-free-versions.csv`: Sonnet downgrades 5/5, Opus k
 4/5) — it is that **even when forced onto the current major, both models execute it with
 the previous major's muscle memory.** Recency bites at choice *and* at execution.
 
-### 🔺 Three-model extension — Sonnet 5 added, Tiko 0.3.0 added (2026-07-01)
+### 🔺 Multi-model extension — Sonnet 5 + Fable 5 added, Tiko 0.3.0 added (2026-07-01/02)
 
-**Sonnet 5 makes the version-recency result unanimous, not just high-variance.** Same
-fixed scaffold, N=5, forced version:
+**Four model generations on the identical fixed scaffolds.** Same spec, N=5, forced
+version:
 
-| Cell | Boot / Jackson | Sonnet 4.6 | Opus 4.8 | Sonnet 5 |
-|---|---|---|---|---|
-| `spring3-fix` (control) | 3.3.5 / Jackson 2 | 100/100/100 (n=3) | 100/100/100 (n=3) | **100 100 100 0 100** |
-| `spring-fix` (current major) | 4.0.6 / Jackson 3 | 0/0/0/0/0 | 0/0/0/0/0 | **0 0 0 0 0** |
+| Cell | Boot / Jackson | Sonnet 4.6 | Opus 4.8 | Sonnet 5 | Fable 5 |
+|---|---|---|---|---|---|
+| `spring3-fix` (control) | 3.3.5 / Jackson 2 | 100/100/100 (n=3) | 100/100/100 (n=3) | **100 100 100 0 100** | **100 ×5** |
+| `spring-fix` (current major) | 4.0.6 / Jackson 3 | 0/0/0/0/0 | 0/0/0/0/0 | **0 0 0 0 0** | **0 0 0 0 100** |
 
-**Three model generations, 15 independent `spring-fix` trials, zero passes.** Sonnet 5
-is not the newest-generation exception the "high-variance" caveat above left open — it
-reproduces the identical failure at the identical rate. Root cause, re-verified on two
-Sonnet-5 trials: **still the missing `KafkaTemplate` bean**
-(`No qualifying bean of type 'org.springframework.kafka.core.KafkaTemplate<...>'`) —
-unchanged from Sonnet 4.6 / Opus 4.8, *even in trials that correctly adopted Jackson 3 and
-Spring Kafka's new `JacksonJsonSerializer`*. Getting the JSON layer right does not help;
-**none of the 15 clean-run trials, across all three models, ever added
-`spring-boot-starter-kafka`** (the actual Boot-4 fix). Sonnet 5 tried three distinct
-JSON strategies (adopt Jackson 3 directly; adopt Spring Kafka's new `JacksonJsonSerializer`/
-`JacksonJsonDeserializer`; or resist Jackson 3 by pinning classic Jackson 2 alongside it) —
-all three still hit the same Kafka-autoconfig wall.
+**20 independent `spring-fix` trials across four model generations: exactly one pass —
+and it is the one trial that found the fix.** Sonnet 5 reproduced the unanimous failure
+(0/5): root cause re-verified as **still the missing `KafkaTemplate` bean**, unchanged
+from Sonnet 4.6 / Opus 4.8, *even in trials that correctly adopted Jackson 3 and Spring
+Kafka's new `JacksonJsonSerializer`*. Sonnet 5 tried three distinct JSON strategies
+(adopt Jackson 3 directly; adopt the new `JacksonJsonSerializer`/`JacksonJsonDeserializer`;
+resist Jackson 3 by pinning classic Jackson 2 alongside it) — all three hit the same
+Kafka-autoconfig wall. Getting the JSON layer right does not help.
 
-**Tiko 0.3.0 (Opus 4.8 + Sonnet 5, N=5 each), clean re-run:**
+**Fable 5 is the first model to show genuine Boot-4 knowledge — inconsistently.** Its
+five Boot-4 trials split three ways:
+- `f5-05` (**the sole pass, 100%**): added **`spring-boot-starter-kafka`**, explicitly
+  reasoning that "in Boot 4 the Kafka auto-configuration lives in the `spring-boot-kafka`
+  module, not `spring-boot-autoconfigure`." The only trial out of 20 to reach for the
+  actual fix — and the only one to pass.
+- `f5-01` (0%): diagnosed the `KafkaTemplate` generic-mismatch and worked around it with
+  `KafkaTemplate<Object, Object>` — necessary but not sufficient (the consumer side still
+  never wired).
+- `f5-02/03/04` (0%): the standard Boot-3 idiom (bare `spring-kafka` + autoconfig), same
+  failure as every other model.
 
-| Trial | Opus 4.8 | Sonnet 5 |
-|---|---|---|
-| 01–05 | 100 100 100 **0** 100 | 100 **0** 100 100 100 |
-| median | **100%** | **100%** |
+So the blind spot is **not** binary "closes with newer models" — the newest-generation
+model *carries* the Boot-4 knowledge but retrieves it **1 time in 5**. The gravity well
+weakens with recency; it does not disappear.
 
-Both land at 100% median with one real failure each (different trials). The Opus failure
-(`o-04`) is a `ConfigValidationException` from kebab-case keys (`app.h2-url`) not matching
-the camelCase binding (`app.h2Url`) — **independently reproducing issue
+**Tiko 0.3.0 (Opus 4.8 + Sonnet 5 + Fable 5, N=5 each), clean re-run:**
+
+| Trial | Opus 4.8 | Sonnet 5 | Fable 5 |
+|---|---|---|---|
+| 01–05 | 100 100 100 **0** 100 | 100 **0** 100 100 100 | **100 ×5** |
+| median | **100%** | **100%** | **100%** |
+
+All three land at 100% median; **Fable 5 is the only model to sweep the cell 5/5.** The
+Opus failure (`o-04`) is a `ConfigValidationException` from kebab-case keys (`app.h2-url`)
+not matching the camelCase binding (`app.h2Url`) — **independently reproducing issue
 [#404](https://github.com/tomas-samek/tiko-di/issues/404)**, filed from static analysis
-before this run and now confirmed by live failure.
+before this run and now confirmed by live failure. Separately, **five of five Fable
+trials hit the `@PostConstruct`-must-be-`public` compile error live**
+([#400](https://github.com/tomas-samek/tiko-di/issues/400)) and self-corrected — five
+more independent reproductions of that doc bug. Fable's discovery path also differed:
+it read the published `-sources.jar`s instead of `javap`-ing bytecode, a cheaper route
+to the same undocumented contract.
 
 **Grading erratum (2026-07-01):** an earlier attempt to grade `tiko-030` produced
 `0/0/0` for three trials whose apps had, in fact, started and were consuming normally.
@@ -215,14 +232,15 @@ manual reproduction of trial `o-01` (7/7, 100%). Lesson for this project: never 
 grading invocation through a filtering command; redirect to a file and grep the file
 afterward.
 
-**Token cost — a bigger/newer model is not a cheaper one.** Average output tokens per
-build:
+**Token cost — a bigger/newer model is not a cheaper one (but the newest is the most
+efficient).** Average output tokens per build:
 
 | Model | spring-fix (Boot 4.0.6) | spring3-fix (Boot 3.3.5) | tiko-030 (Tiko 0.3.0) |
 |---|---|---|---|
 | Sonnet 4.6 | 45.0k | 36.5k | — |
 | Opus 4.8 | 52.9k | 47.1k | 106.0k |
 | Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
+| Fable 5 | 54.9k | **49.4k** | 107.8k |
 
 Sonnet 5 costs **~1.7–1.9× Opus 4.8** and **~1.9× Sonnet 4.6** on the identical tasks,
 consistently across all three cells (not one outlier trial) — while landing at the same
@@ -232,8 +250,13 @@ trials independently rediscovered the same undocumented facts already filed as
 (the `@KafkaSource`/`@EventTrigger` contract, the `poison-record-policy` default,
 config-key casing) via deeper bytecode-level exploration (`javap -p -c` on generated
 validators) than earlier models used — more thorough, and markedly more expensive.
-**A newer/larger model does not fix the version-recency blind spot and does not fix the
-Tiko documentation-discovery cost — it can make the second one worse.**
+**Fable 5 breaks the "newer = pricier" trend**: it matches Opus's token cost on Tiko
+(~108k vs ~106k) and beats it on both Spring cells, while scoring highest overall
+(perfect Tiko sweep + the only Boot-4 pass). So the relationship between model
+generation and cost is not monotonic — but the core point stands: **you cannot buy your
+way out of the version-recency blind spot with tokens** (Sonnet 5 spent 1.7× Opus on
+Boot 4 and still went 0/5), and **capability + current knowledge beat brute-force
+exploration** (Fable got the best results at near-lowest cost).
 
 ---
 
