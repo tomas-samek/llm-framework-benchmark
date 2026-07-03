@@ -260,7 +260,7 @@ exploration** (Fable got the best results at near-lowest cost).
 
 ---
 
-## Stage 2 — loop until complies (2026-07-02)
+## Stage 2 — loop until complies (2026-07-02/03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
 keeps the *identical* Stage-1 task but lets the agent **iterate against a CI-gate** that
@@ -268,18 +268,32 @@ reports which acceptance scenarios pass/fail — **pass/fail only, expected valu
 suppressed** (`conformance/stage-2/ci-gate.ps1`; it rebuilds → runs the app against a
 live broker → runs the hidden suite → reports per-scenario PASS/FAIL + a leak-free
 category). Cap: 8 gate runs; the hidden oracle confirms at the end. Only the **Boot 4.0.6**
-cell is informative (the others already comply one-shot). N=3 per model. Data:
-`results/stage-2-loop.csv`.
+cell is informative (the others already comply one-shot). N=3 per model, four models.
+Data: `results/stage-2-loop.csv`; pricing basis: `results/pricing.md`.
 
-**Result — the version-recency wall is NOT iteration-proof.**
+**Result — the version-recency wall is NOT iteration-proof, on any model.**
 
-| Model | Converged | Iterations to pass | Tokens to compliance |
-|---|---|---|---|
-| Opus 4.8 | **3/3** | 2, 2, 2 | 54k, 57k, 53k (**avg 54.5k**) |
-| Sonnet 4.6 | **3/3** | 3, 2, 3 | 119k, 80k, 152k (**avg 116.8k**) |
+| Model | Converged | Iterations to pass | Tokens to compliance | Cost to compliance ($, output-only — see caveat below) |
+|---|---|---|---|---|
+| Fable 5 | **3/3** | 2, 2, **1** | 52k, 51k, 45k (**avg 49.5k** — lowest tokens) | $2.60, $2.55, $2.27 (**avg $2.47** — highest cost) |
+| Opus 4.8 | **3/3** | 2, 2, 2 | 54k, 57k, 53k (avg 54.5k) | $1.34, $1.43, $1.32 (avg $1.36) |
+| Sonnet 5 | **3/3** | 2, **1**, 2 | 75k, 63k, 82k (avg 73.4k) | $1.12, $0.95, $1.24 (**avg $1.10** — lowest cost) |
+| Sonnet 4.6 | **3/3** | 3, 2, 3 | 119k, 80k, 152k (avg 116.8k — highest tokens) | $1.78, $1.19, $2.28 (avg $1.75) |
 
-Every Boot-4 loop trial reached **100%** — the same cell that went **0/5 one-shot for both
-models** (Stage-1 "Multi-model extension"). Convergence took **2–3 gate runs**.
+Every Boot-4 loop trial reached **100%**, across all four models — the same cell that
+went **0/5 one-shot for Sonnet 4.6, Opus 4.8, and Sonnet 5**, and 1/5 for Fable, in
+Stage-1 "Multi-model extension". Convergence took **1–3 gate runs**. One Fable trial and
+one Sonnet 5 trial each complied on their *first* gate run — i.e. they got Boot 4 right
+one-shot within the loop's opening build, which no Opus or Sonnet-4.6 trial did.
+
+**Tokens and dollars rank differently — the "cheapest" model depends which unit you
+use.** Fable 5 uses the **fewest tokens** (avg 49.5k) but, at $50/1M output, is the
+**most expensive in dollars** (avg $2.47). Sonnet 5 is the mirror image: it uses **more
+tokens than Opus** (73.4k vs 54.5k — a Sonnet-5-vs-Opus token gap consistent with the
+Stage-1 finding below) but at $15/1M vs Opus's $25/1M it ends up **cheapest overall in
+dollars** (avg $1.10 vs Opus's $1.36). Per-token price differences between models are
+large enough to invert a token-based ranking — see `results/pricing.md` for the
+dated price table this is computed from.
 
 **Why the one-shot 0% is a *silent-failure* artifact, not a knowledge wall.** Each trial
 failed one-shot because the app compiled, started, and quietly produced nothing — a
@@ -302,8 +316,25 @@ model found in 20 one-shot trials.
 **Cost framing.** Opus reaches a compliant Boot-4 solution in 2 iterations at ~54.5k
 tokens — **essentially the same token cost as one *failed* one-shot Boot-4 build (~53k,
 see the Stage-1 token table)**. The one-shot 0% was never a *cost* problem; it was a
-*feedback* problem. Sonnet gets there in 2–3 iterations at ~117k tokens (~2.6× its
-one-shot spend, ~2.1× Opus's loop cost) — pricier, but still 100% convergence.
+*feedback* problem. Sonnet 4.6 gets there in 2–3 iterations at ~117k tokens (~2.6× its
+one-shot spend, ~2.1× Opus's loop cost) — pricier in tokens, and still pricier in
+dollars (avg $1.75 vs Opus's $1.36), but still 100% convergence. Sonnet 5 spends more
+tokens than Opus (~73.4k) but, being priced at $15/1M output vs Opus's $25/1M, is
+actually the **cheapest of the four in dollars** (avg $1.10) — cost and token-count
+diverge once per-model pricing enters the picture.
+
+**A real gap in the cost accounting: input tokens aren't captured, and Stage 2 is
+where that bites hardest.** Every `tokens_to_compliance` / `cost_usd` figure above
+counts **output tokens only** — the harness has no visibility into input tokens. That's
+a fair proxy for Stage 1 (the agent never runs its own app there), but in Stage 2 the
+agent reads `app.log` after every gate run to diagnose the failure, and that log is
+large: 130 KB–363 KB across these trials, i.e. roughly **33k–91k tokens per full
+read** — on the same order as, or larger than, the entire output-token count for some
+trials. A 2–3 iteration trial plausibly re-reads a log that size 2–3 times. This means
+every dollar figure above likely **understates** true cost, and does so more for
+higher-iteration trials (Sonnet 4.6's 3-iteration runs) than for 1–2-iteration ones —
+so the true cost spread across models is probably *wider* than shown, not narrower.
+Treat the Stage-2 cost column as directional. Full reasoning in `results/pricing.md`.
 
 **Bottom line — the danger of version-recency concentrates in fire-and-forget workflows.**
 An agent that builds, declares done, and never runs it ships a silently-broken Boot-4
@@ -314,7 +345,9 @@ is *"models can't build on Boot 4 **without running it**."*
 **Caveats.** N=3 per model, one cell, one point in time. The gate rebuilds+runs each
 iteration (~2 min); loop trials are broker-exclusive (run sequentially). Convergence is
 measured against the same scenario set the final oracle uses — a **held-out** acceptance
-set (to detect overfitting to the gate) is a Stage-2 hardening TODO.
+set (to detect overfitting to the gate) is a Stage-2 hardening TODO. Cost figures are an
+output-token-only proxy (see above) and should not be read as authoritative dollar
+amounts, particularly for Stage 2.
 
 ---
 

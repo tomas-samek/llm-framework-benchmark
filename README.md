@@ -70,10 +70,26 @@ Average output tokens per build:
 | Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
 | Fable 5 | 54.9k | 49.4k | 107.8k |
 
-Sonnet 5 costs **~1.7–1.9×** Opus 4.8 on identical tasks for the same compliance —
-while Fable 5 gets the **best results** (only Boot-4 pass, perfect Tiko sweep) at
-**near-lowest cost**. Spending more tokens doesn't buy correctness; current knowledge
-does.
+Sonnet 5 uses **~1.7–1.9×** the tokens of Opus 4.8 on identical tasks for the same
+compliance — but tokens aren't dollars. Per-model output pricing differs enough
+(Opus $25/1M, Sonnet 5 $15/1M, Fable 5 $50/1M — see `results/pricing.md`) that the
+token gap mostly cancels out:
+
+| Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
+|---|---|---|---|
+| Sonnet 4.6 | $0.68 | $0.55 | — |
+| Opus 4.8 | $1.32 | $1.18 | $2.65 |
+| Sonnet 5 | $1.32 | $1.03 | $2.80 |
+| Fable 5 | **$2.75** | **$2.47** | **$5.39** |
+
+On `spring`, Sonnet 5 and Opus 4.8 land at **near-identical dollar cost** despite the
+1.7× token gap. Fable 5 gets the **best results** (only Boot-4 pass, perfect Tiko
+sweep) but is the **most expensive per build** in dollars, not the cheapest — its
+lower token count doesn't offset its $50/1M output rate. Spending more tokens doesn't
+buy correctness, and fewer tokens doesn't mean cheaper; current knowledge determines
+correctness, and per-model pricing determines cost, largely independently of each
+other. (These are one-shot Stage-1 dollar figures — output tokens only, no log-reading
+loop involved; see `results/pricing.md` for the Stage-2 caveat, which is more severe.)
 
 ### What it found
 
@@ -157,10 +173,15 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Multi-model extension: Sonnet 5 + Fable 5 added, Tiko bumped to 0.3.0 (1/20 pass
       on Boot 4.0.6 across four models — the one trial that found the new starter;
       per-model token costs measured)
+- [x] Stage 2 — loop-until-complies harness on the Boot 4.0.6 cell, N=3 across all four
+      models (Sonnet 4.6, Opus 4.8, Fable 5, Sonnet 5): **12/12 converged to 100%
+      compliance** in 1–3 gate iterations — the one-shot 0% is a feedback problem, not a
+      knowledge wall. Token-cheapest (Fable 5) and dollar-cheapest (Sonnet 5) are
+      different models. See `results/RESULTS.md` → "Stage 2 — loop until complies".
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
-- [ ] Stage 2 — loop-until-complies harness (iterate against a live broker until the
-      agent self-declares done; measure convergence + iteration/token cost)
+- [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
+      held-out acceptance set to detect gate overfitting
 - [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)
 
 ## License
