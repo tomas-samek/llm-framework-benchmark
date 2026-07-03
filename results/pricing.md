@@ -55,7 +55,7 @@ not the most expensive.
   per-component price (see formula above), not `output_tokens_apparent ×
   output_price`.
 
-Two reconstruction gotchas, both handled by `conformance/stage-2/token-accounting.py`:
+Reconstruction gotchas, all handled by `conformance/token-accounting.py`:
 1. **A single API response is logged as multiple transcript lines** (one per
    content block — text, tool_use, tool_use, …), each carrying an *identical*
    copy of that response's usage object. Summing every line triple-counts.
@@ -63,7 +63,19 @@ Two reconstruction gotchas, both handled by `conformance/stage-2/token-accountin
 2. **Nested sub-agents.** A trial's subagent can itself dispatch a background
    research agent; that nested agent's tokens are real cost but live in a
    *separate* transcript file, found by matching `agentId: <id>` inside
-   `tool_result` content and recursing.
+   `tool_result` content and recursing — potentially into a *different*
+   session directory than its parent, if the parent and the nested dispatch
+   didn't happen to fall in the same session.
+3. **Interrupted-and-re-dispatched trials leave two transcripts.** Discovered
+   while re-verifying Stage 1: 6 of the 51 Stage-1 trials (all Fable 5) each
+   matched *two* candidate transcripts. One was an earlier attempt that hit a
+   session token limit mid-build (final `stop_reason: "stop_sequence"`, last
+   message literally "You've hit your session limit — resets 10:40pm..."),
+   the other was the completed re-dispatch after the workspace was wiped and
+   re-run (final `stop_reason: "end_turn"`, a real completion report). Using
+   the truncated transcript understates both tokens and cost for that trial.
+   Fix: when `find_transcript()` returns more than one hit, check
+   `last_assistant_stop_reason()` for each and prefer `"end_turn"`.
 
 Spot-checked against a single large `Write` tool call (~3.3KB of file content,
 ~824 tokens) whose logged `output_tokens` was 1,269 — the right order of
@@ -73,17 +85,24 @@ deduped correctly.
 ### Caveat: this requires the transcript to still exist
 
 This reconstruction only works while Claude Code's subagent transcript is
-still on disk — there's no documented retention guarantee. **Run the
-accounting soon after each trial, in the same session, not months later.**
-Don't assume old trials can be reconstructed the way this file's history was
-(we got lucky that this session's transcripts hadn't been pruned yet).
+still on disk — there's no documented retention guarantee. In practice, this
+project's two sessions' transcripts survived from 2026-06-07 through at least
+2026-07-03 (nearly a month, spanning both the original Stage-1 runs and the
+Stage-2 loop trials) without being pruned, which is why both stages were
+fully reconstructable — but that's this environment's observed behavior, not
+a guarantee. **Run the accounting soon after each trial if you want certainty.**
 
-### Known unresolved scope: Stage-1 headline numbers
+## Stage-1 headline numbers — also corrected (2026-07-03)
 
-The Stage-1 "Token cost" table in `README.md` (spring/spring3/tiko cells,
-4 models) was also built from `subagent_tokens` and is very likely subject to
-the same distortion — those numbers should be treated as **directional, not
-authoritative**, pending the same reconstruction. Re-deriving them is out of
-scope for this fix (those trials ran across multiple earlier Claude Code
-sessions over several days; some transcripts may already be pruned) but is a
-real TODO, not a closed question.
+The Stage-1 "Token cost" table in `README.md` (spring-fix/spring3-fix/tiko-030
+cells, 4 models, 51 trials total) was also built from `subagent_tokens` and
+was re-verified the same way as Stage 2, using all 51 trials' persisted
+transcripts (100% recovered — both of this project's sessions had every
+transcript still on disk). See `README.md` → "Headline results — Stage 1" →
+"Token cost" for the corrected tables, and `results/RESULTS.md` →
+"Multi-model extension" → "Token cost" for the full narrative. Headline
+finding: **Fable 5 uses fewer real output tokens than Opus 4.8 in every
+single cell**, but is still the most expensive per build in dollars in two
+of three cells, because its $50/1M output and $10/1M input rates outweigh
+the lower token count — tokens and dollars rank differently here too, for
+the same reason as in Stage 2.

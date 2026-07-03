@@ -232,31 +232,52 @@ manual reproduction of trial `o-01` (7/7, 100%). Lesson for this project: never 
 grading invocation through a filtering command; redirect to a file and grep the file
 afterward.
 
-**Token cost — a bigger/newer model is not a cheaper one (but the newest is the most
-efficient).** Average output tokens per build:
+**Token cost (corrected 2026-07-03 — see erratum).** An earlier version of this
+section used the Agent-tool dispatch's `subagent_tokens` figure as "average output
+tokens." Per the erratum in `results/pricing.md` (originally discovered while
+re-verifying Stage 2), `subagent_tokens` is not a token-generation count — it's
+approximately the *final API call's total context size*, dominated by cheap
+cache-read tokens, not tokens the model wrote. All 51 Stage-1 trials behind this table
+were re-verified by reconstructing real per-call usage from Claude Code's persisted
+subagent transcripts (`conformance/token-accounting.py`); one wrinkle surfaced along
+the way: **6 of the Fable-5 trials each had two candidate transcripts** — an earlier
+attempt that hit a session token limit mid-build (`stop_reason: stop_sequence`, "You've
+hit your session limit") and a later, completed re-dispatch (`stop_reason: end_turn`).
+The corrected numbers below use the completed transcript in every case.
+
+Real average output tokens per build:
 
 | Model | spring-fix (Boot 4.0.6) | spring3-fix (Boot 3.3.5) | tiko-030 (Tiko 0.3.0) |
 |---|---|---|---|
-| Sonnet 4.6 | 45.0k | 36.5k | — |
-| Opus 4.8 | 52.9k | 47.1k | 106.0k |
-| Sonnet 5 | **88.2k** | **68.6k** | **186.9k** |
-| Fable 5 | 54.9k | **49.4k** | 107.8k |
+| Sonnet 4.6 | 3.4k | 3.0k | — |
+| Opus 4.8 | 2.6k | 2.8k | 4.2k |
+| Sonnet 5 | **4.5k** | **7.7k** | **6.7k** |
+| Fable 5 | 2.5k | **0.7k** | 2.2k |
 
-Sonnet 5 costs **~1.7–1.9× Opus 4.8** and **~1.9× Sonnet 4.6** on the identical tasks,
-consistently across all three cells (not one outlier trial) — while landing at the same
-or statistically indistinguishable compliance. On `tiko-030` specifically, all 5 Sonnet-5
-trials independently rediscovered the same undocumented facts already filed as
-[#401](https://github.com/tomas-samek/tiko-di/issues/401)–[#404](https://github.com/tomas-samek/tiko-di/issues/404)
-(the `@KafkaSource`/`@EventTrigger` contract, the `poison-record-policy` default,
-config-key casing) via deeper bytecode-level exploration (`javap -p -c` on generated
-validators) than earlier models used — more thorough, and markedly more expensive.
-**Fable 5 breaks the "newer = pricier" trend**: it matches Opus's token cost on Tiko
-(~108k vs ~106k) and beats it on both Spring cells, while scoring highest overall
-(perfect Tiko sweep + the only Boot-4 pass). So the relationship between model
-generation and cost is not monotonic — but the core point stands: **you cannot buy your
-way out of the version-recency blind spot with tokens** (Sonnet 5 spent 1.7× Opus on
-Boot 4 and still went 0/5), and **capability + current knowledge beat brute-force
-exploration** (Fable got the best results at near-lowest cost).
+Real average cost per build (input + cache-write + cache-read + output, each priced
+correctly — see `results/pricing.md`):
+
+| Model | spring-fix | spring3-fix | tiko-030 |
+|---|---|---|---|
+| Sonnet 4.6 | **$0.52** | **$0.35** | — |
+| Opus 4.8 | $0.85 | $0.63 | $2.65 |
+| Sonnet 5 | $1.17 | $0.76 | $3.62 |
+| Fable 5 | $1.21 | $0.88 | **$3.44** |
+
+Sonnet 5 does use meaningfully more tokens than Opus 4.8 on identical tasks (1.6×–2.7×
+depending on cell) while landing at the same or statistically indistinguishable
+compliance — that qualitative finding survives the correction, even though the exact
+multiplier and absolute magnitudes do not. The dollar story is now cleaner than before:
+**Sonnet 4.6 is the cheapest model in every cell it has data for**, and **Fable 5 —
+despite using *fewer* real output tokens than Opus in every single cell (0.7k–2.5k vs
+2.6k–4.2k) — is still the most expensive per build in two of three cells**, because its
+$50/1M output and $10/1M input rates outweigh its lower token count. The relationship
+between model generation and dollar cost is not monotonic, and tokens and dollars rank
+differently — but the core qualitative points survive the correction: **you cannot buy
+your way out of the version-recency blind spot with tokens** (Sonnet 5 spent more than
+Opus on Boot 4 and still went 0/5), and **capability + current knowledge beat
+brute-force exploration** (Fable got the best compliance results while writing less
+code than Opus, even if not at the lowest dollar cost).
 
 ---
 
@@ -282,7 +303,7 @@ read**: `results/pricing.md`.
 > tokens in the whole accounting). The table below uses real, reconstructed per-call
 > usage — output tokens, fresh input, cache-write, cache-read — each priced correctly.
 > Full methodology, the verification that pinned this down, and the reconstruction
-> script (`conformance/stage-2/token-accounting.py`) are in `results/pricing.md`.
+> script (`conformance/token-accounting.py`) are in `results/pricing.md`.
 
 **Result — the version-recency wall is NOT iteration-proof, on any model.**
 
@@ -358,8 +379,9 @@ now reconstructed from real per-call usage (see the erratum above and
 `results/pricing.md`) and are as accurate as the underlying transcripts allow — but that
 reconstruction depends on Claude Code's subagent transcripts still being on disk, which
 has no documented retention guarantee; re-verifying old trials months later may not be
-possible. The Stage-1 "Token cost" table in `README.md` has **not** been re-verified
-this way and should still be treated as directional (noted there).
+possible. The Stage-1 "Token cost" table in `README.md` **has** now been re-verified
+the same way (see the Multi-model extension section's "Token cost" subsection above,
+and `results/pricing.md`).
 
 ---
 
