@@ -260,7 +260,7 @@ exploration** (Fable got the best results at near-lowest cost).
 
 ---
 
-## Stage 2 — loop until complies (2026-07-02/03)
+## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
 keeps the *identical* Stage-1 task but lets the agent **iterate against a CI-gate** that
@@ -269,16 +269,29 @@ suppressed** (`conformance/stage-2/ci-gate.ps1`; it rebuilds → runs the app ag
 live broker → runs the hidden suite → reports per-scenario PASS/FAIL + a leak-free
 category). Cap: 8 gate runs; the hidden oracle confirms at the end. Only the **Boot 4.0.6**
 cell is informative (the others already comply one-shot). N=3 per model, four models.
-Data: `results/stage-2-loop.csv`; pricing basis: `results/pricing.md`.
+Data: `results/stage-2-loop.csv`; accounting methodology and an **erratum you should
+read**: `results/pricing.md`.
+
+> ⚠️ **Erratum.** An earlier version of this section used the Agent-tool dispatch's
+> `subagent_tokens` figure as "tokens to compliance" and multiplied it by the output
+> price for "cost to compliance." That figure is **not** a count of tokens generated —
+> reconstructed from Claude Code's persisted subagent transcripts, it turns out to be
+> approximately the *final API call's total context size* (mostly cheap cache-read
+> tokens), not a sum of output tokens. Pricing it at the output rate overstated cost by
+> ~15–30×, in the wrong direction (the number it inflated is dominated by the *cheapest*
+> tokens in the whole accounting). The table below uses real, reconstructed per-call
+> usage — output tokens, fresh input, cache-write, cache-read — each priced correctly.
+> Full methodology, the verification that pinned this down, and the reconstruction
+> script (`conformance/stage-2/token-accounting.py`) are in `results/pricing.md`.
 
 **Result — the version-recency wall is NOT iteration-proof, on any model.**
 
-| Model | Converged | Iterations to pass | Tokens to compliance | Cost to compliance ($, output-only — see caveat below) |
+| Model | Converged | Iterations to pass | Output tokens (real) | Cost to compliance ($, real — input + cache write/read + output) |
 |---|---|---|---|---|
-| Fable 5 | **3/3** | 2, 2, **1** | 52k, 51k, 45k (**avg 49.5k** — lowest tokens) | $2.60, $2.55, $2.27 (**avg $2.47** — highest cost) |
-| Opus 4.8 | **3/3** | 2, 2, 2 | 54k, 57k, 53k (avg 54.5k) | $1.34, $1.43, $1.32 (avg $1.36) |
-| Sonnet 5 | **3/3** | 2, **1**, 2 | 75k, 63k, 82k (avg 73.4k) | $1.12, $0.95, $1.24 (**avg $1.10** — lowest cost) |
-| Sonnet 4.6 | **3/3** | 3, 2, 3 | 119k, 80k, 152k (avg 116.8k — highest tokens) | $1.78, $1.19, $2.28 (avg $1.75) |
+| Fable 5 | **3/3** | 2, 2, **1** | 2286, 1986, 1164 (avg **1812** — lowest) | $1.62, $1.34, $0.84 (avg $1.26) |
+| Opus 4.8 | **3/3** | 2, 2, 2 | 1617, 3156, 3007 (avg 2593) | $0.88, $1.22, $0.89 (avg **$0.99** — lowest) |
+| Sonnet 5 | **3/3** | 2, **1**, 2 | 7119, 3043, 1686 (avg 3949) | $1.45, $0.63, $1.10 (avg $1.06) |
+| Sonnet 4.6 | **3/3** | 3, 2, 3 | 3531, 4792, 8700 (avg 5674 — highest) | $1.77, $1.07, $4.71 (avg **$2.52** — highest, by a lot) |
 
 Every Boot-4 loop trial reached **100%**, across all four models — the same cell that
 went **0/5 one-shot for Sonnet 4.6, Opus 4.8, and Sonnet 5**, and 1/5 for Fable, in
@@ -286,14 +299,14 @@ Stage-1 "Multi-model extension". Convergence took **1–3 gate runs**. One Fable
 one Sonnet 5 trial each complied on their *first* gate run — i.e. they got Boot 4 right
 one-shot within the loop's opening build, which no Opus or Sonnet-4.6 trial did.
 
-**Tokens and dollars rank differently — the "cheapest" model depends which unit you
-use.** Fable 5 uses the **fewest tokens** (avg 49.5k) but, at $50/1M output, is the
-**most expensive in dollars** (avg $2.47). Sonnet 5 is the mirror image: it uses **more
-tokens than Opus** (73.4k vs 54.5k — a Sonnet-5-vs-Opus token gap consistent with the
-Stage-1 finding below) but at $15/1M vs Opus's $25/1M it ends up **cheapest overall in
-dollars** (avg $1.10 vs Opus's $1.36). Per-token price differences between models are
-large enough to invert a token-based ranking — see `results/pricing.md` for the
-dated price table this is computed from.
+**Cost tracks iteration count more than it tracks output tokens.** The single most
+expensive trial by far is s-03 (Sonnet 4.6, 3 iterations, $4.71) — nearly 4× the next
+most expensive trial. Every extra gate iteration means resending (and cache-reading) a
+growing conversation, and that cache-read volume — not the text/code the model actually
+writes — dominates real cost. Opus 4.8 is cheapest overall (avg $0.99) despite not
+having the fewest output tokens (Fable does, avg 1812), because its trials stayed at a
+flat 2 iterations every time. Sonnet 4.6 is unambiguously the most expensive, driven by
+its one 3-iteration outlier trial.
 
 **Why the one-shot 0% is a *silent-failure* artifact, not a knowledge wall.** Each trial
 failed one-shot because the app compiled, started, and quietly produced nothing — a
@@ -313,28 +326,23 @@ In one-shot mode none of these is visible — the app "runs". The gate's single 
 One trial (s-03) even discovered `spring-boot-starter-kafka` *in the loop* — the fix no
 model found in 20 one-shot trials.
 
-**Cost framing.** Opus reaches a compliant Boot-4 solution in 2 iterations at ~54.5k
-tokens — **essentially the same token cost as one *failed* one-shot Boot-4 build (~53k,
-see the Stage-1 token table)**. The one-shot 0% was never a *cost* problem; it was a
-*feedback* problem. Sonnet 4.6 gets there in 2–3 iterations at ~117k tokens (~2.6× its
-one-shot spend, ~2.1× Opus's loop cost) — pricier in tokens, and still pricier in
-dollars (avg $1.75 vs Opus's $1.36), but still 100% convergence. Sonnet 5 spends more
-tokens than Opus (~73.4k) but, being priced at $15/1M output vs Opus's $25/1M, is
-actually the **cheapest of the four in dollars** (avg $1.10) — cost and token-count
-diverge once per-model pricing enters the picture.
+**Cost framing.** Opus reaches a compliant Boot-4 solution in 2 iterations, every time,
+at real cost of ~$0.88–1.22 — the cheapest and most *consistent* of the four models.
+The one-shot 0% was never a cost problem; it was a feedback problem, and paying for a
+couple of iterations to fix it is cheap. Sonnet 4.6 is the outlier: two of its three
+trials cost about what Opus costs, but its one 3-iteration trial (s-03) costs $4.71 —
+more than 4× any other trial in the dataset — because each extra gate iteration means
+re-reading a larger accumulated conversation, and that cache-read volume, not code
+generation, is what actually drives cost here. Fable 5 writes the least code (lowest
+real output tokens) but its $50/1M output rate and $10/1M input rate (both far above
+Opus's $25/$5) still land it mid-pack on total cost. Sonnet 5 is close behind Opus.
 
-**A real gap in the cost accounting: input tokens aren't captured, and Stage 2 is
-where that bites hardest.** Every `tokens_to_compliance` / `cost_usd` figure above
-counts **output tokens only** — the harness has no visibility into input tokens. That's
-a fair proxy for Stage 1 (the agent never runs its own app there), but in Stage 2 the
-agent reads `app.log` after every gate run to diagnose the failure, and that log is
-large: 130 KB–363 KB across these trials, i.e. roughly **33k–91k tokens per full
-read** — on the same order as, or larger than, the entire output-token count for some
-trials. A 2–3 iteration trial plausibly re-reads a log that size 2–3 times. This means
-every dollar figure above likely **understates** true cost, and does so more for
-higher-iteration trials (Sonnet 4.6's 3-iteration runs) than for 1–2-iteration ones —
-so the true cost spread across models is probably *wider* than shown, not narrower.
-Treat the Stage-2 cost column as directional. Full reasoning in `results/pricing.md`.
+**Why this matters methodologically:** the dominant cost driver in Stage 2 is **cache-read
+volume from re-reading a growing conversation on every iteration**, not the tokens the
+model visibly writes. A cost metric built only from "tokens generated" — whether
+correctly measured or not — would systematically understate the price of iteration and
+overstate how cheap a model's *output* looks relative to its *process*. This is exactly
+the failure mode flagged (and fixed) in `results/pricing.md`'s erratum.
 
 **Bottom line — the danger of version-recency concentrates in fire-and-forget workflows.**
 An agent that builds, declares done, and never runs it ships a silently-broken Boot-4
@@ -345,9 +353,13 @@ is *"models can't build on Boot 4 **without running it**."*
 **Caveats.** N=3 per model, one cell, one point in time. The gate rebuilds+runs each
 iteration (~2 min); loop trials are broker-exclusive (run sequentially). Convergence is
 measured against the same scenario set the final oracle uses — a **held-out** acceptance
-set (to detect overfitting to the gate) is a Stage-2 hardening TODO. Cost figures are an
-output-token-only proxy (see above) and should not be read as authoritative dollar
-amounts, particularly for Stage 2.
+set (to detect overfitting to the gate) is a Stage-2 hardening TODO. Cost figures are
+now reconstructed from real per-call usage (see the erratum above and
+`results/pricing.md`) and are as accurate as the underlying transcripts allow — but that
+reconstruction depends on Claude Code's subagent transcripts still being on disk, which
+has no documented retention guarantee; re-verifying old trials months later may not be
+possible. The Stage-1 "Token cost" table in `README.md` has **not** been re-verified
+this way and should still be treated as directional (noted there).
 
 ---
 

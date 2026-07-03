@@ -88,8 +88,17 @@ sweep) but is the **most expensive per build** in dollars, not the cheapest — 
 lower token count doesn't offset its $50/1M output rate. Spending more tokens doesn't
 buy correctness, and fewer tokens doesn't mean cheaper; current knowledge determines
 correctness, and per-model pricing determines cost, largely independently of each
-other. (These are one-shot Stage-1 dollar figures — output tokens only, no log-reading
-loop involved; see `results/pricing.md` for the Stage-2 caveat, which is more severe.)
+other.
+
+> ⚠️ **These Stage-1 token/cost figures are unverified and possibly wrong in the same
+> way Stage-2's were.** They're built from the Agent-tool dispatch's `subagent_tokens`
+> figure, which — per the erratum in `results/pricing.md` — turned out to measure
+> something closer to "final conversation context size" than "output tokens
+> generated," and pricing that as if it were output tokens overstates cost by roughly
+> 15–30×. Stage 2's numbers were corrected by reconstructing real per-call usage from
+> Claude Code's subagent transcripts; that reconstruction hasn't been done for these
+> Stage-1 numbers yet (they span multiple, possibly-pruned older sessions). Treat this
+> table as directional only until re-verified.
 
 ### What it found
 
@@ -131,6 +140,33 @@ loop involved; see `results/pricing.md` for the Stage-2 caveat, which is more se
 > `results/RESULTS.md` → "Three-model extension" for the full breakdown, the grading
 > erratum (a harness bug that produced false negatives, now corrected), and
 > "Caveats / validity".
+
+## Headline results — Stage 2
+
+Stage 1 is one-shot: build, grade, done — the agent never runs its own app. Stage 2
+keeps the *identical* task but lets the agent iterate against a CI-gate (pass/fail per
+scenario, no expected values — mirrors a black-box integration-test suite) until it
+believes it complies. Only the Boot 4.0.6 cell is informative (everything else already
+complies one-shot). N=3 per model, four models. Full write-up, methodology, and a
+[token-accounting erratum](results/pricing.md) worth reading:
+[`results/RESULTS.md`](results/RESULTS.md#stage-2--loop-until-complies-2026-07-0203-cost-corrected-2026-07-03).
+
+| Model | Converged | Iterations to pass | Cost to compliance ($, real — input + cache write/read + output) |
+|---|---|---|---|
+| Fable 5 | **3/3** | 2, 2, **1** | avg **$1.26** |
+| Opus 4.8 | **3/3** | 2, 2, 2 | avg **$0.99** — cheapest |
+| Sonnet 5 | **3/3** | 2, **1**, 2 | avg **$1.06** |
+| Sonnet 4.6 | **3/3** | 3, 2, 3 | avg **$2.52** — most expensive, by ~2.5× |
+
+**The version-recency wall is fully iteration-proof: 12/12 trials converge to 100%
+compliance**, across every model tried, in 1–3 gate runs — the same cell that scored
+0/5 one-shot for three of the four models. The one-shot 0% headline above is a
+*feedback* problem, not a knowledge wall: an agent that never runs its own app ships a
+silently-broken Boot-4 service every time; an agent that runs-and-checks recovers every
+time, cheaply. Cost tracks **iteration count**, not code volume — the single most
+expensive trial (Sonnet 4.6, 3 iterations, $4.71) costs ~4× any other trial, because
+every extra gate iteration means re-reading a larger accumulated conversation, and that
+cache-read volume dominates real cost far more than the code the model actually writes.
 
 ## How it works
 
@@ -176,8 +212,10 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Stage 2 — loop-until-complies harness on the Boot 4.0.6 cell, N=3 across all four
       models (Sonnet 4.6, Opus 4.8, Fable 5, Sonnet 5): **12/12 converged to 100%
       compliance** in 1–3 gate iterations — the one-shot 0% is a feedback problem, not a
-      knowledge wall. Token-cheapest (Fable 5) and dollar-cheapest (Sonnet 5) are
-      different models. See `results/RESULTS.md` → "Stage 2 — loop until complies".
+      knowledge wall. Real (transcript-reconstructed) cost: Opus 4.8 cheapest (avg
+      $0.99), Sonnet 4.6 most expensive by ~2.5× (avg $2.52, driven by a 3-iteration
+      outlier trial). See `results/RESULTS.md` → "Stage 2 — loop until complies" and
+      the token-accounting erratum in `results/pricing.md`.
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
