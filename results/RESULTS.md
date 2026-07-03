@@ -260,6 +260,64 @@ exploration** (Fable got the best results at near-lowest cost).
 
 ---
 
+## Stage 2 — loop until complies (2026-07-02)
+
+Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
+keeps the *identical* Stage-1 task but lets the agent **iterate against a CI-gate** that
+reports which acceptance scenarios pass/fail — **pass/fail only, expected values
+suppressed** (`conformance/stage-2/ci-gate.ps1`; it rebuilds → runs the app against a
+live broker → runs the hidden suite → reports per-scenario PASS/FAIL + a leak-free
+category). Cap: 8 gate runs; the hidden oracle confirms at the end. Only the **Boot 4.0.6**
+cell is informative (the others already comply one-shot). N=3 per model. Data:
+`results/stage-2-loop.csv`.
+
+**Result — the version-recency wall is NOT iteration-proof.**
+
+| Model | Converged | Iterations to pass | Tokens to compliance |
+|---|---|---|---|
+| Opus 4.8 | **3/3** | 2, 2, 2 | 54k, 57k, 53k (**avg 54.5k**) |
+| Sonnet 4.6 | **3/3** | 3, 2, 3 | 119k, 80k, 152k (**avg 116.8k**) |
+
+Every Boot-4 loop trial reached **100%** — the same cell that went **0/5 one-shot for both
+models** (Stage-1 "Multi-model extension"). Convergence took **2–3 gate runs**.
+
+**Why the one-shot 0% is a *silent-failure* artifact, not a knowledge wall.** Each trial
+failed one-shot because the app compiled, started, and quietly produced nothing — a
+*different* silent Boot-4 mis-wire each time, all invisible without running it:
+- **boot-and-exit** — custom factory beans defined but `@EnableKafka` missing → the
+  `@KafkaListener` infrastructure never activates → no non-daemon thread → the JVM exits
+  ~immediately, consuming nothing (o-01, o-02, o-03, s-01).
+- **wildcard-generic `KafkaTemplate<?,?>`** from autoconfig won't satisfy a strongly-typed
+  injection point → fail to start (s-03).
+- **Jackson 2/3 classpath clash** — spring-kafka's `JsonDeserializer` is built against
+  Jackson 2, but Boot 4 ships Jackson 3 → `NoClassDefFoundError` at startup (s-02).
+- **untyped `JsonDeserializer`** shared across four schemas with no per-topic default type
+  → every message silently dropped (s-01, s-03).
+
+In one-shot mode none of these is visible — the app "runs". The gate's single bit
+("no output produced for this case") is enough for **both** models to diagnose and fix.
+One trial (s-03) even discovered `spring-boot-starter-kafka` *in the loop* — the fix no
+model found in 20 one-shot trials.
+
+**Cost framing.** Opus reaches a compliant Boot-4 solution in 2 iterations at ~54.5k
+tokens — **essentially the same token cost as one *failed* one-shot Boot-4 build (~53k,
+see the Stage-1 token table)**. The one-shot 0% was never a *cost* problem; it was a
+*feedback* problem. Sonnet gets there in 2–3 iterations at ~117k tokens (~2.6× its
+one-shot spend, ~2.1× Opus's loop cost) — pricier, but still 100% convergence.
+
+**Bottom line — the danger of version-recency concentrates in fire-and-forget workflows.**
+An agent that builds, declares done, and never runs it ships a silently-broken Boot-4
+service 100% of the time (Stage 1). An agent that runs-and-checks recovers 100% of the
+time, cheaply (Stage 2). The honest headline is not *"models can't build on Boot 4"* — it
+is *"models can't build on Boot 4 **without running it**."*
+
+**Caveats.** N=3 per model, one cell, one point in time. The gate rebuilds+runs each
+iteration (~2 min); loop trials are broker-exclusive (run sequentially). Convergence is
+measured against the same scenario set the final oracle uses — a **held-out** acceptance
+set (to detect overfitting to the gate) is a Stage-2 hardening TODO.
+
+---
+
 The section below is the original Sonnet 4.6 deep-dive (now one column above).
 
 ---

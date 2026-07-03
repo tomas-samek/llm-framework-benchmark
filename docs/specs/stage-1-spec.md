@@ -133,4 +133,4 @@ Timestamps (`occurredAt`) are echoed unchanged from the purchase.
 - Retry, dead-letter topics, exactly-once semantics.
 - Authentication, multi-tenancy, schema migrations beyond initial table
   creation.
-- Full-text search (that is Stage 2).
+- Full-text search (that is Stage 3).

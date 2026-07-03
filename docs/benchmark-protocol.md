@@ -9,10 +9,41 @@ Given the **same framework-neutral specification**, which framework lets an AI
 coding agent build the system *better*? "Better" is defined by three measured
 signals (§8): spec-compliance, efficiency, and code quality.
 
-This protocol governs every run. The per-stage specs
-(`docs/specs/stage-1-spec.md`, `docs/specs/stage-2-spec.md`) describe **what** to
-build and contain **no framework information**. This document is the only place
+This protocol governs every run. The per-stage specs describe **what** to build
+and contain **no framework information**. This document is the only place
 framework names, dependencies, and benchmark mechanics appear.
+
+### Stages — a workflow-realism ladder
+
+The stages are not just increasing task size; they increase how closely the run
+mirrors a real agentic workflow. The **task spec** may be shared across stages;
+what changes is the **mode**.
+
+| Stage | Task spec | Mode | Measures |
+|---|---|---|---|
+| **1 — One-shot build** | `stage-1-spec.md` (Kafka → H2 → notifications) | build once, graded by the hidden oracle; the agent never runs the app | cold-build correctness — the version-recency / doc-discovery results to date |
+| **2 — Loop until complies** | `stage-1-spec.md` (same task) | the agent runs the app against a live broker and **iterates until it believes it complies**, capped by a budget | whether iteration *converges* — and at what iteration/token cost — or whether a missing-knowledge failure (e.g. never discovering `spring-boot-starter-kafka`) is one that looping cannot escape |
+| **3 — Evolve (brownfield)** | `stage-3-spec.md` (add Lucene full-text search + an HTTP query endpoint to the Stage-1 app) | given a working Stage-1 codebase in a fresh context, extend it without breaking the existing acceptance scenarios | cold-codebase mutation — regression safety + new-feature correctness |
+
+**Open decision for Stage 2 — the loop's feedback signal** (this determines what
+Stage 2 measures; see §"Stage 2 loop" below):
+- **(a) sample-data only** — the agent gets a live broker + a sample publisher
+  (*not* the graded fixtures) and self-verifies. Purest; but "complies against my
+  own samples" ≠ "passes the hidden oracle".
+- **(b) CI-gate pass/fail** *(recommended)* — additionally, a gate reports *which
+  acceptance scenarios failed*, pass/fail only, **no expected values**. Mirrors a
+  provided integration-test suite a developer runs; realistic, minimal leakage.
+- **(c) full oracle diff** — expected-vs-actual shown. Rejected: leaks the answer
+  key and measures hill-climbing against the grader, not capability.
+
+### Stage 2 loop (mechanics)
+
+Builds on the Gate-2 harness in `gate-protocol.md` (per-contestant live broker on a
+unique port + embedded H2 + sample publisher). The agent iterates: run → observe →
+fix, until it declares done (self-verified against option (a)/(b) above) **or** hits a
+frozen budget cap (tokens / iterations / wall-clock). The **hidden oracle still grades
+once at the end**. Captured per trial: iterations-to-declared-done, tokens-to-done,
+final compliance, and — the headline metric — **did it converge within budget**.
 
 ## 2. Contestants and the equal start
 
@@ -64,7 +95,7 @@ sample/example repositories.
   `tiko-test`. Tiko has **no** first-party DB or HTTP module, so the agent
   **must hand-build**:
   - DB access: raw JDBC over a pooled `DataSource`, against H2.
-  - HTTP endpoint (Stage 2): the JDK `com.sun.net.httpserver`.
+  - HTTP endpoint (Stage 3): the JDK `com.sun.net.httpserver`.
   Code **must not** be lifted from `tiko-examples`.
 - Kafka transport is allowed on both via their native module.
 
@@ -75,7 +106,7 @@ integration code with framework + docs only. This is the deliberate
 
 ## 5. Isolation
 
-Each trial sees **only** its golden scaffold + the stage spec (+ for Stage 2, the
+Each trial sees **only** its golden scaffold + the stage spec (+ for Stage 3, the
 Stage-1 result it builds on). A trial must not have access to:
 - the other framework's repository,
 - the two original projects (`test-no-tiko`, `tiko-warmup-test`),

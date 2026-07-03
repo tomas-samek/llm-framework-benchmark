@@ -1,0 +1,7 @@
+model,trial,cell,boot_version,converged,iterations_to_pass,tokens_to_compliance,pass_vector
+claude-opus-4-8,o-01,spring-fix,4.0.6,yes,2,53635,0->7
+claude-opus-4-8,o-02,spring-fix,4.0.6,yes,2,57190,0->7
+claude-opus-4-8,o-03,spring-fix,4.0.6,yes,2,52625,0->7
+claude-sonnet-4-6,s-01,spring-fix,4.0.6,yes,3,118865,0->0->7
+claude-sonnet-4-6,s-02,spring-fix,4.0.6,yes,2,79515,0->7
+claude-sonnet-4-6,s-03,spring-fix,4.0.6,yes,3,152169,0->0->7

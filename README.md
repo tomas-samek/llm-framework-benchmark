@@ -159,7 +159,9 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       per-model token costs measured)
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
-- [ ] Stage-2 spec (full-text search)
+- [ ] Stage 2 — loop-until-complies harness (iterate against a live broker until the
+      agent self-declares done; measure convergence + iteration/token cost)
+- [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)
 
 ## License
 
