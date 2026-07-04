@@ -26,10 +26,10 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-06-13T13:18:08Z,claude-fable-5,tiko,stage-1,03,100,88,3455,,60,4.013
 2026-06-13T13:20:04Z,claude-fable-5,tiko,stage-1,04,100,88,5693,,53,4.056
 2026-06-13T13:21:59Z,claude-fable-5,tiko,stage-1,05,100,88,8094,,61,4.839
-2026-06-13T13:23:53Z,claude-fable-5,tiko-mcp,stage-1,01,100,89,1849,,19,2.917
-2026-06-13T13:25:55Z,claude-fable-5,tiko-mcp,stage-1,02,100,88,613,,32,2.559
-2026-06-13T13:27:54Z,claude-fable-5,tiko-mcp,stage-1,03,100,88,1219,,40,2.475
-2026-06-13T13:31:44Z,claude-fable-5,tiko-mcp,stage-1,05,100,88,3738,,49,2.592
+2026-06-13T13:23:53Z,claude-fable-5,tiko-mcp,stage-1,01,100,89,2668,,19,2.526
+2026-06-13T13:25:55Z,claude-fable-5,tiko-mcp,stage-1,02,100,88,4802,,32,4.186
+2026-06-13T13:27:54Z,claude-fable-5,tiko-mcp,stage-1,03,100,88,3342,,40,5.021
+2026-06-13T13:31:44Z,claude-fable-5,tiko-mcp,stage-1,05,100,88,4562,,49,5.673
 2026-06-13T14:53:25Z,claude-opus-4-8,spring,stage-1,01,0,87,2913,,34,0.886
 2026-06-13T14:55:16Z,claude-opus-4-8,spring,stage-1,02,0,87,4695,,46,1.305
 2026-06-13T14:57:08Z,claude-opus-4-8,spring,stage-1,03,100,87,7280,,66,3.047
@@ -44,7 +44,7 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-06-13T15:13:27Z,claude-opus-4-8,tiko-mcp,stage-1,01,86,87,6363,,83,4.092
 2026-06-13T15:15:15Z,claude-opus-4-8,tiko-mcp,stage-1,02,86,87,4233,,79,4.119
 2026-06-13T15:17:04Z,claude-opus-4-8,tiko-mcp,stage-1,03,100,87,2492,,81,3.307
-2026-06-13T17:09:33Z,claude-fable-5,tiko-mcp,stage-1,04,0,88,898,,26,2.085
+2026-06-13T17:09:33Z,claude-fable-5,tiko-mcp,stage-1,04,0,88,1217,,26,1.9
 2026-06-13T17:11:29Z,claude-opus-4-8,tiko-mcp,stage-1,04,0,88,271,,,1.146
 2026-06-13T17:13:26Z,claude-opus-4-8,tiko-mcp,stage-1,05,0,88,1724,,,2.734
 2026-06-13T18:21:57Z,claude-sonnet-4-6,spring-free,stage-1,01,0,88,2967,,,0.433

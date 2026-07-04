@@ -398,7 +398,7 @@ expensive cell-average build cost.**
 |---|---|---|---|
 | Sonnet 4.6 | spring-fix: $0.52 | tiko: $2.21 | yes |
 | Opus 4.8 | spring: $1.62 | tiko-030: $2.65 | yes |
-| Fable 5 | spring: $1.89 | tiko-mcp: $2.53 | yes |
+| Fable 5 | spring: $1.89 | tiko-030: $3.44 | yes |
 | Sonnet 5 | spring-fix: $1.17 | tiko-030: $3.62 | yes |
 
 This holds cleanly at the **per-cell average** level (n=5 trials per cell) for all four

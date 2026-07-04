@@ -82,14 +82,39 @@ Reconstruction gotchas, all handled by `conformance/token-accounting.py`:
    contestant apps... trials 01..05") and an unrelated jbang/MCP-setup task
    both happened to contain a target trial's path string somewhere in their
    transcript, causing a false match when searching the *entire* transcript
-   text. Two fixes, both in `token-accounting.py`'s matching helper: restrict
-   the search to each transcript's **first user message** (the actual dispatch
-   prompt, not later tool output/exploration that can reference other paths in
-   passing), and require that first message to actually look like a build
-   dispatch (contains "build" in its opening ~80 characters) before accepting
-   a match. Older, more loosely-worded trial directories (bare `trial-01`
-   instead of a longer, cell-specific name) are more exposed to this than the
-   newer headline trials, which is why it surfaced late.
+   text. Fix, in `token-accounting.py`'s matching helper: restrict the search
+   to each transcript's **first user message** (the actual dispatch prompt,
+   not later tool output/exploration that can reference other paths in
+   passing), and require the word **"only"** to appear shortly before the
+   matched path (checked against every occurrence of every path spelling in
+   the message, not just the first found). Every genuine build dispatch
+   establishes its working directory with "work ONLY here" / "working ONLY
+   inside this directory" language immediately before the path; a passing
+   mention (e.g. "target project (already built...): `<path>`") does not.
+   Older, more loosely-worded trial directories (bare `trial-01` instead of a
+   longer, cell-specific name) are more exposed to this than the newer
+   headline trials, which is why it surfaced late.
+
+   **An earlier, less precise version of this fix required literally "build"
+   in the message's opening ~80 characters instead of the "only"-proximity
+   check** — cheaper to state, but wrong two ways. It produced false
+   *negatives* for genuine dispatches whose preamble ran past 80 characters
+   before the word "build" appeared (all 12 Stage-2 loop trials, which open
+   with "You are a contestant... running in ITERATIVE mode. Build the
+   system..."). More seriously, it silently left a session-limit-truncated
+   duplicate as the *only* accepted match for 5 Fable-5/`tiko-mcp` trials,
+   because the genuine completed dispatch happened to fail that specific
+   check — understating both tokens and cost for those 5 rows in a way that
+   produced no error and no "ambiguous" flag, since only one candidate
+   passed. Caught by re-running the Stage-2 trials through the corrected
+   tool and finding they no longer matched at all, which prompted a full
+   121-trial validation against every previously-published number; exactly
+   these 5 rows differed. Both `results/metrics.csv` and this file's Stage-2
+   / Stage-1 sections have been corrected. The qualitative "Tiko always
+   pricier than Spring on average" finding is unaffected — the corrected
+   Fable/`tiko-mcp` average ($3.86, was $2.53) makes that finding *more*
+   robust, not less; only the specific "cheapest Tiko-family cell" cited for
+   Fable changed, from `tiko-mcp` to `tiko-030`.
 
 Spot-checked against a single large `Write` tool call (~3.3KB of file content,
 ~824 tokens) whose logged `output_tokens` was 1,269 — the right order of

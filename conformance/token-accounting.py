@@ -50,13 +50,24 @@ Gotchas this script handles:
   4. An unrelated transcript can spuriously match a trial's path -- e.g. a
      shared batch-grading dispatch that enumerates several trial directories,
      or a completely unrelated task that happens to reference the path in
-     passing. `find_transcript()` guards against this two ways: it only
-     searches each transcript's FIRST user message (the actual dispatch
-     prompt), not the whole transcript, and it requires that message to
-     contain "build" in its opening ~80 characters. Older, more loosely-named
-     trial directories (bare `trial-01` rather than a longer cell-specific
-     name) are more exposed to this than newer ones -- re-verify results for
-     those specifically if you extend this further.
+     passing (e.g. "target project (already built...): <path>"). `find_
+     transcript()` guards against this two ways: it only searches each
+     transcript's FIRST user message (the actual dispatch prompt), not the
+     whole transcript, and it requires the word "only" to appear shortly
+     before the matched path -- every genuine build dispatch establishes its
+     working directory with "work ONLY here" / "working ONLY inside this
+     directory" language immediately before the path, which a passing mention
+     does not have. (An earlier version of this check required literally
+     "build" in the message's opening ~80 characters instead; that both
+     missed genuine dispatches with a long preamble before the word "build"
+     appeared, e.g. Stage-2's loop trials, AND -- more seriously -- silently
+     accepted a session-limit-truncated duplicate as the sole match for 5
+     Fable-5/tiko-mcp trials because the genuine completed dispatch happened
+     to fail that check. If you're looking at output from a copy of this tool
+     from before 2026-07-04, re-verify it.) Older, more loosely-named trial
+     directories (bare `trial-01` rather than a longer cell-specific name)
+     are more exposed to false matches in general -- double check results
+     for those specifically if you extend this further.
 
 CAVEAT -- TRANSCRIPT RETENTION
 -------------------------------
@@ -136,11 +147,25 @@ def find_transcript(projects_root, sessions, cell, trial_name):
     (the actual dispatch prompt establishing the working directory) -- not
     anywhere in the transcript, which can false-match a later grading/
     orchestration agent that enumerates many trial dirs, or a completely
-    unrelated task that happens to reference the path in passing -- AND that
-    first message must actually look like a build dispatch ("build" appears
-    in its opening ~80 characters), to reject non-build tasks (environment
-    setup, MCP smoke tests, etc.) that share a loosely-named trial path."""
+    unrelated task that happens to reference the path in passing -- AND the
+    word "only" must appear shortly before that path (within `only_window`
+    characters). Every genuine build dispatch seen in this project establishes
+    its working directory with "work ONLY here" / "working ONLY inside this
+    directory" language immediately before the path; a task that merely
+    *mentions* the path as context (e.g. "target project (already built...):
+    <path>") does not. This is checked against EVERY occurrence of EVERY path
+    spelling in the message, not just the first one found -- a naive
+    first-match check can find an unrelated later mention (e.g. inside a shell
+    command) before the real "working ONLY here" declaration and wrongly
+    reject the file. An earlier, less precise version of this check --
+    requiring literally "build" in the message's opening ~80 characters --
+    both missed genuine dispatches whose preamble ran long before the word
+    "build" appeared, and (separately) missed some genuine dispatches for
+    unrelated reasons, silently leaving a session-limit-truncated duplicate as
+    the only accepted match for 5 trials. Re-verify anything computed with a
+    tool older than 2026-07-04 against this one."""
     candidates = [f"{cell}\\\\{trial_name}", f"{cell}/{trial_name}", f"{cell}\\{trial_name}"]
+    only_window = 300
     hits = []
     for session in sessions:
         subdir = _subagents_dir(projects_root, session)
@@ -151,11 +176,22 @@ def find_transcript(projects_root, sessions, cell, trial_name):
                 text = _first_user_text(path)
             except (OSError, json.JSONDecodeError):
                 continue
-            if not any(c in text for c in candidates):
-                continue
-            if "build" not in text.strip()[:80].lower():
-                continue
-            hits.append((session, os.path.basename(path)))
+            matched = False
+            for c in candidates:
+                start = 0
+                while True:
+                    idx = text.find(c, start)
+                    if idx == -1:
+                        break
+                    preceding = text[max(0, idx - only_window):idx].lower()
+                    if "only" in preceding:
+                        matched = True
+                        break
+                    start = idx + 1
+                if matched:
+                    break
+            if matched:
+                hits.append((session, os.path.basename(path)))
     return hits
 
 
