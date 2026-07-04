@@ -133,14 +133,18 @@ other.
    [8 doc-friction issues](https://github.com/tomas-samek/tiko-di/issues/399) this
    benchmark surfaced and filed directly against Tiko.
 
-6. **Tiko can win on compliance but not on Stage-1 setup cost — by design.** Across the
-   full 109-trial corpus (`results/metrics.csv`, every cell including the pre-"-fix"
-   originals), Tiko's cheapest cell-average build cost exceeds Spring's priciest
-   cell-average build cost, for every model tested. This is the direct, expected
-   consequence of the benchmark's own fairness rule — Tiko has no first-party DB/HTTP
-   module and must hand-build both, "the deliberate 'make it harder for Tiko' handicap
-   agreed for this benchmark" (`docs/benchmark-protocol.md` §4) — not a Tiko defect. See
-   `results/RESULTS.md` → "Cross-cell cost analysis" for the full breakdown.
+6. **Tiko can win on compliance but not on Stage-1 setup cost — and it's iteration
+   count, not code volume, that costs.** Across the full 109-trial corpus
+   (`results/metrics.csv`, every cell including the pre-"-fix" originals), Tiko's
+   cheapest cell-average build cost exceeds Spring's priciest cell-average build cost,
+   for every model tested. The obvious hypothesis — Tiko costs more because the agent
+   hand-writes more code (no first-party DB/HTTP module) — turns out to be a minor
+   contributor: actual code written (output tokens) is only ~2% of the cost gap. What
+   dominates is **~2× more turns on every model** (most extreme for Sonnet 4.6, a 3.2×
+   increase), which compounds into ~4× more re-read conversation context — the agent
+   needs more *rounds* to discover Tiko's undocumented API surface and satisfy its
+   strict compile-time DI validation, not more *lines*. See `results/RESULTS.md` →
+   "Cross-cell cost analysis" for the full component breakdown.
 
 > These are directional results: small N and a few points in time per cell. See
 > `results/RESULTS.md` → "Three-model extension" for the full breakdown, the grading

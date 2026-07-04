@@ -408,14 +408,45 @@ can cost more than an occasional cheap Tiko outlier (e.g. one that failed fast a
 stopped early) — but the average signal is unambiguous and consistent across every
 model generation tried, old scaffold and new.
 
-**This is an expected, by-design consequence, not a Tiko defect.** Per the fairness rule
-in `docs/benchmark-protocol.md` §4: Tiko has no first-party DB or HTTP module, so every
-Tiko trial must hand-build JDBC access and (in Stage 3) an HTTP endpoint from scratch,
-while Spring gets first-party starters for both — "the deliberate 'make it harder for
-Tiko' handicap agreed for this benchmark." That extra hand-built integration code is
-mechanically more tool calls, more iterations, and more re-read conversation context
-regardless of which model is doing the building — which is exactly what shows up as
-higher cost here.
+**Why: it's iteration count, not code volume.** The obvious hypothesis — Tiko costs more
+because the agent has to hand-write more code (no first-party DB/HTTP module) — is only a
+minor contributor. Breaking real usage down by component (pooled across all models,
+Spring-family vs Tiko-family):
+
+| | Spring (avg) | Tiko (avg) | Ratio | Share of the $2.23 cost gap |
+|---|---|---|---|---|
+| API calls (turns) | 26.5 | 56.0 | **2.1×** | — |
+| Output tokens (code/text actually written) | 3,430 | 5,162 | 1.5× | ~2% |
+| Cache-write tokens | 41,970 | 125,901 | 3.0× | ~29% |
+| Cache-read tokens | 1,059,875 | 4,245,667 | **4.0×** | **~68%** |
+| **Total cost** | **$0.896** | **$3.130** | — | 100% |
+
+If "more code to write" were the driver, the *output* row would dominate the cost gap —
+instead it's ~2%. What actually dominates is cache-read (~68%) and cache-write (~29%),
+both driven by the same upstream cause: **Tiko trials take roughly twice as many turns**
+(consistent across every model; most extreme for Sonnet 4.6, 29.7 → 94.7, a 3.2×
+increase). Because every turn re-sends the whole conversation so far, a 2× increase in
+turns compounds into a 4× increase in cache-read volume — iteration cost grows faster
+than linearly with turn count, not code volume.
+
+**Consistent with this: output tokens barely move for the strongest models.** Opus 4.8
+writes only 6% more code on Tiko (3,288 → 3,475) and Sonnet 5 only 9% more (6,118 →
+6,685) — nowhere near enough to explain a 2.7–3.8× cost multiplier on its own. Sonnet 4.6
+is the exception (3,251 → 8,946, +175%), suggesting weaker models genuinely do write
+more exploratory/defensive code on an unfamiliar framework — but even for Sonnet 4.6,
+turns grew faster (3.2×) than output did (2.75×).
+
+**Root cause: Tiko needs more *rounds* to get right, not more *code*, because it's
+out-of-training-corpus.** The extra turns are spent on active API discovery (reading
+`CLAUDE.md`/`.ai-skills`, in some trials decompiling or reading jar sources to find
+undocumented method signatures — this project's own history includes a "discover
+tiko-kafka API from jar" step) and working through Tiko's strict compile-time DI
+validation, which catches wiring mistakes with a compile error rather than a runtime
+surprise — each one costing a read-error, diagnose, fix, recompile cycle. The fairness
+rule in `docs/benchmark-protocol.md` §4 (Tiko has no first-party DB/HTTP module, so every
+Tiko trial must hand-build JDBC access and, in Stage 3, an HTTP endpoint) is still the
+underlying reason Tiko trials are harder — it's just that "harder" cashes out mostly as
+*more attempts*, not *more lines*.
 
 **The honest headline: Tiko can win on compliance, but not on Stage-1 setup cost, under
 the current fairness rules.** Tiko's whole value proposition in this benchmark is
