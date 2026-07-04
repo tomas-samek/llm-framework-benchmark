@@ -385,6 +385,53 @@ and `results/pricing.md`).
 
 ---
 
+## Cross-cell cost analysis: Tiko's initial-setup cost is structurally higher (2026-07-04)
+
+Extending the same ground-truth reconstruction to the **entire** Stage-1 corpus —
+`results/metrics.csv`, all 109 trials, including the earlier `spring`/`spring-free`/
+`spring3`/`tiko`/`tiko-mcp` cells that predate the "-fix"/"-030" scaffold corrections,
+not just the 51-trial headline table — surfaces a consistent, model-independent pattern:
+**for every model tested, Tiko's cheapest cell-average build cost exceeds Spring's most
+expensive cell-average build cost.**
+
+| Model | Priciest Spring-family cell (avg) | Cheapest Tiko-family cell (avg) | Tiko-family always pricier on average |
+|---|---|---|---|
+| Sonnet 4.6 | spring-fix: $0.52 | tiko: $2.21 | yes |
+| Opus 4.8 | spring: $1.62 | tiko-030: $2.65 | yes |
+| Fable 5 | spring: $1.89 | tiko-mcp: $2.53 | yes |
+| Sonnet 5 | spring-fix: $1.17 | tiko-030: $3.62 | yes |
+
+This holds cleanly at the **per-cell average** level (n=5 trials per cell) for all four
+models. At the individual-trial level there's some overlap for Opus 4.8 and Fable 5 — an
+occasional expensive Spring outlier trial (e.g. one that explored longer than typical)
+can cost more than an occasional cheap Tiko outlier (e.g. one that failed fast and
+stopped early) — but the average signal is unambiguous and consistent across every
+model generation tried, old scaffold and new.
+
+**This is an expected, by-design consequence, not a Tiko defect.** Per the fairness rule
+in `docs/benchmark-protocol.md` §4: Tiko has no first-party DB or HTTP module, so every
+Tiko trial must hand-build JDBC access and (in Stage 3) an HTTP endpoint from scratch,
+while Spring gets first-party starters for both — "the deliberate 'make it harder for
+Tiko' handicap agreed for this benchmark." That extra hand-built integration code is
+mechanically more tool calls, more iterations, and more re-read conversation context
+regardless of which model is doing the building — which is exactly what shows up as
+higher cost here.
+
+**The honest headline: Tiko can win on compliance, but not on Stage-1 setup cost, under
+the current fairness rules.** Tiko's whole value proposition in this benchmark is
+closing the version-recency gap that sinks Spring on Boot 4.0.6 (0% one-shot) — and it
+does, decisively (100% median across models). It was never going to win the *initial
+one-shot build* cost comparison against a framework that gets first-party DB/HTTP
+support for free; the two dimensions measure different things, and the benchmark's own
+design intentionally stacks the cost dimension against Tiko in exchange for testing
+whether an out-of-training-corpus framework can still be built correctly with good
+in-repo docs. Whether Tiko's advantage compounds past that hand-built cost over a longer
+lifecycle (maintenance, Stage 3 feature-add reusing that integration code, avoiding
+future version-recency regressions Spring is prone to) is an open question this
+benchmark doesn't yet measure.
+
+---
+
 The section below is the original Sonnet 4.6 deep-dive (now one column above).
 
 ---

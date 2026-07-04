@@ -47,6 +47,16 @@ Gotchas this script handles:
      (completed normally) over one that stopped some other way (interrupted).
      This is not automatic in `find_transcript()` -- inspect the candidates
      and pick explicitly; see results/pricing.md for a worked example.
+  4. An unrelated transcript can spuriously match a trial's path -- e.g. a
+     shared batch-grading dispatch that enumerates several trial directories,
+     or a completely unrelated task that happens to reference the path in
+     passing. `find_transcript()` guards against this two ways: it only
+     searches each transcript's FIRST user message (the actual dispatch
+     prompt), not the whole transcript, and it requires that message to
+     contain "build" in its opening ~80 characters. Older, more loosely-named
+     trial directories (bare `trial-01` rather than a longer cell-specific
+     name) are more exposed to this than newer ones -- re-verify results for
+     those specifically if you extend this further.
 
 CAVEAT -- TRANSCRIPT RETENTION
 -------------------------------
@@ -97,12 +107,39 @@ def _subagents_dir(projects_root, session):
     return os.path.join(projects_root, session, "subagents")
 
 
+def _first_user_text(path):
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            if obj.get("type") == "user":
+                c = (obj.get("message") or {}).get("content")
+                if isinstance(c, str):
+                    return c
+                if isinstance(c, list) and c and isinstance(c[0], dict):
+                    return c[0].get("text", "")
+                return ""
+    return ""
+
+
 def find_transcript(projects_root, sessions, cell, trial_name):
     """Search every subagent transcript across the given sessions for a path
     reference to `<cell>/<trial_name>` (tolerating '/', '\\', and the
     double-backslash JSON escaping Windows paths get on disk). Returns a list
     of (session, filename) -- more than one hit means disambiguate manually
-    (see module docstring, gotcha #3)."""
+    (see module docstring, gotcha #3).
+
+    Two precision requirements, both required after gotcha #4 (see module
+    docstring): the path must appear in the transcript's FIRST user message
+    (the actual dispatch prompt establishing the working directory) -- not
+    anywhere in the transcript, which can false-match a later grading/
+    orchestration agent that enumerates many trial dirs, or a completely
+    unrelated task that happens to reference the path in passing -- AND that
+    first message must actually look like a build dispatch ("build" appears
+    in its opening ~80 characters), to reject non-build tasks (environment
+    setup, MCP smoke tests, etc.) that share a loosely-named trial path."""
     candidates = [f"{cell}\\\\{trial_name}", f"{cell}/{trial_name}", f"{cell}\\{trial_name}"]
     hits = []
     for session in sessions:
@@ -111,12 +148,14 @@ def find_transcript(projects_root, sessions, cell, trial_name):
             continue
         for path in glob.glob(os.path.join(subdir, "*.jsonl")):
             try:
-                with open(path, encoding="utf-8", errors="ignore") as f:
-                    text = f.read()
-            except OSError:
+                text = _first_user_text(path)
+            except (OSError, json.JSONDecodeError):
                 continue
-            if any(c in text for c in candidates):
-                hits.append((session, os.path.basename(path)))
+            if not any(c in text for c in candidates):
+                continue
+            if "build" not in text.strip()[:80].lower():
+                continue
+            hits.append((session, os.path.basename(path)))
     return hits
 
 

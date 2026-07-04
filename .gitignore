@@ -2,6 +2,8 @@
 target/
 *.class
 dependency-reduced-pom.xml
+__pycache__/
+*.pyc
 
 # Local data / logs produced during runs
 data/

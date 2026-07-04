@@ -133,6 +133,15 @@ other.
    [8 doc-friction issues](https://github.com/tomas-samek/tiko-di/issues/399) this
    benchmark surfaced and filed directly against Tiko.
 
+6. **Tiko can win on compliance but not on Stage-1 setup cost — by design.** Across the
+   full 109-trial corpus (`results/metrics.csv`, every cell including the pre-"-fix"
+   originals), Tiko's cheapest cell-average build cost exceeds Spring's priciest
+   cell-average build cost, for every model tested. This is the direct, expected
+   consequence of the benchmark's own fairness rule — Tiko has no first-party DB/HTTP
+   module and must hand-build both, "the deliberate 'make it harder for Tiko' handicap
+   agreed for this benchmark" (`docs/benchmark-protocol.md` §4) — not a Tiko defect. See
+   `results/RESULTS.md` → "Cross-cell cost analysis" for the full breakdown.
+
 > These are directional results: small N and a few points in time per cell. See
 > `results/RESULTS.md` → "Three-model extension" for the full breakdown, the grading
 > erratum (a harness bug that produced false negatives, now corrected), and

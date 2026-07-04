@@ -12,9 +12,9 @@ Anthropic API, per-million-tokens, standard (non-batch) rate.
 
 Cache multipliers (applied to the *input* rate above): cache write ×1.25 (5-minute
 TTL) or ×2 (1-hour TTL); cache read ×0.1. `cost_usd` in `results/stage-2-loop.csv`
-is `input×price_in + cache_write×price_in×1.25 + cache_read×price_in×0.1 +
-output×price_out`, all divided by 1e6 — i.e. the **full**, correctly-weighted
-cost, not an output-only proxy.
+and `results/metrics.csv` is `input×price_in + cache_write×price_in×1.25 +
+cache_read×price_in×0.1 + output×price_out`, all divided by 1e6 — i.e. the
+**full**, correctly-weighted cost, not an output-only proxy.
 
 ## Erratum: `subagent_tokens` is not output tokens (corrected 2026-07-03)
 
@@ -76,6 +76,20 @@ Reconstruction gotchas, all handled by `conformance/token-accounting.py`:
    the truncated transcript understates both tokens and cost for that trial.
    Fix: when `find_transcript()` returns more than one hit, check
    `last_assistant_stop_reason()` for each and prefer `"end_turn"`.
+4. **A different, unrelated task can spuriously match a trial's path.** Found
+   while extending the reconstruction to `results/metrics.csv`'s full
+   109-trial corpus: a shared batch-grading dispatch ("grade five Tiko
+   contestant apps... trials 01..05") and an unrelated jbang/MCP-setup task
+   both happened to contain a target trial's path string somewhere in their
+   transcript, causing a false match when searching the *entire* transcript
+   text. Two fixes, both in `token-accounting.py`'s matching helper: restrict
+   the search to each transcript's **first user message** (the actual dispatch
+   prompt, not later tool output/exploration that can reference other paths in
+   passing), and require that first message to actually look like a build
+   dispatch (contains "build" in its opening ~80 characters) before accepting
+   a match. Older, more loosely-worded trial directories (bare `trial-01`
+   instead of a longer, cell-specific name) are more exposed to this than the
+   newer headline trials, which is why it surfaced late.
 
 Spot-checked against a single large `Write` tool call (~3.3KB of file content,
 ~824 tokens) whose logged `output_tokens` was 1,269 — the right order of
@@ -106,3 +120,23 @@ single cell**, but is still the most expensive per build in dollars in two
 of three cells, because its $50/1M output and $10/1M input rates outweigh
 the lower token count — tokens and dollars rank differently here too, for
 the same reason as in Stage 2.
+
+## Full metrics.csv reconstruction (2026-07-04)
+
+Extended the reconstruction to `results/metrics.csv`'s **entire** 109-trial
+Stage-1 corpus — not just the 51-trial headline table, but also the earlier
+`spring`/`spring-free`/`spring3`/`tiko`/`tiko-mcp` cells that predate the
+"-fix"/"-030" scaffold corrections. All 109 recovered; `output_tokens` and a
+new `cost_usd` column now hold real, reconstructed values throughout the
+file. This pass is what surfaced reconstruction gotcha #4 above (spurious
+matches on older, more loosely-named trial directories) — re-verify anything
+derived from the *older* cells specifically if you're extending this further,
+since they're more exposed to that failure mode than the newer headline
+trials are.
+
+Headline finding from the full corpus: **Tiko's cheapest per-cell average
+cost exceeds Spring's priciest per-cell average cost, for every model
+tested** — see `results/RESULTS.md` → "Cross-cell cost analysis" for the
+full breakdown and why this is a by-design consequence of the benchmark's
+fairness rule (Tiko hand-builds DB/HTTP; Spring gets first-party starters),
+not a Tiko defect.
