@@ -52,13 +52,14 @@ now on the latest release:
 
 | Framework | Opus 4.8 | Sonnet 5 | Fable 5 |
 |---|---|---|---|
-| Tiko **0.3.0** | **100%** median (4/5) | **100%** median (4/5) | **100%** (5/5) |
+| Tiko **0.5.0** | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
 
-All at 100% median (Fable sweeps 5/5). The two real failures independently reproduce a
-documentation gap ([tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404))
-filed from static analysis *before* these runs — and five Fable trials live-reproduced
-[tiko-di#400](https://github.com/tomas-samek/tiko-di/issues/400) at compile time and
-self-corrected.
+**Every one of 15 trials passes — a clean sweep.** This is an improvement over the
+previous pinned version, Tiko 0.3.0, where Opus and Sonnet 5 each had one failure (both
+independently reproducing a documentation gap, [tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404),
+filed from static analysis *before* those runs) — see `results/RESULTS.md` → "Tiko
+0.5.0" for the full before/after comparison, including a real cost story that's more
+mixed than the compliance one.
 
 **Token cost (re-verified 2026-07-03 — see erratum).** An earlier version of this
 table used the Agent-tool dispatch's `subagent_tokens` figure, which turned out to
@@ -117,10 +118,15 @@ other.
    though not at the lowest dollar cost, since its per-token pricing is highest. What
    separated models on compliance was *what they knew*, not *how hard they worked*.
 
-3. **An out-of-training-corpus framework with in-repo docs holds up well** — Tiko 0.3.0
-   reached 100% median for both Opus 4.8 and Sonnet 5, with the sole failures being
-   already-filed, now-confirmed documentation gaps (kebab-case vs. camelCase config
-   keys), not framework defects.
+3. **An out-of-training-corpus framework with in-repo docs holds up well — and keeps
+   improving.** Tiko 0.3.0 reached 100% median for both Opus 4.8 and Sonnet 5, with the
+   sole failures being already-filed documentation gaps (kebab-case vs. camelCase config
+   keys), not framework defects. On the current release, **Tiko 0.5.0, all three models
+   go 15/15 (100%)** — that doc gap doesn't recur anywhere in the newer run. The 0.5.0
+   doc restructuring is also mostly a cost win, except it taught Opus a new habit
+   (self-authoring its own integration test in 5/5 trials, traced to a specific new
+   doc file) that costs it more than the leaner docs save — see `results/RESULTS.md` →
+   "Tiko 0.5.0".
 
 4. **The MCP topology server showed no compliance lift** in the original Tiko 0.2.2
    run — `tiko` and `tiko-mcp` were identical (`0 0 86 86 100`). The validation gate

@@ -87,10 +87,13 @@ foreach ($t in $Trials) {
         try { $compliance = [math]::Round((Get-Content $outJson -Raw | ConvertFrom-Json).compliance * 100) } catch { $compliance = 0 }
     }
 
-    # metrics row: timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agent_turns,tool_calls
+    # metrics row: timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agent_turns,tool_calls,cost_usd
+    # output_tokens/agent_turns/tool_calls/cost_usd are left blank here -- this script
+    # only grades compliance. Backfill the real values with conformance/token-accounting.py
+    # (see results/pricing.md) once the trials' subagent transcripts are available.
     $trialNum = $trialId -replace '^[A-Za-z0-9]+-', ''
     $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-    Add-Content -Path $Metrics -Value ("{0},{1},{2},stage-1,{3},{4},{5},,," -f $ts, $Model, $fw, $trialNum, $compliance, $elapsed)
+    Add-Content -Path $Metrics -Value ("{0},{1},{2},stage-1,{3},{4},{5},,,," -f $ts, $Model, $fw, $trialNum, $compliance, $elapsed)
 
     if ($null -ne $app) {
         try { taskkill /PID $app.Id /T /F | Out-Null } catch {}

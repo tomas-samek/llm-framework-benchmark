@@ -1,10 +1,13 @@
 # Stage-1 results
 
-> **Start here:** the authoritative version-recency + Tiko-0.3.0 result (four model
-> generations — Sonnet 4.6, Opus 4.8, Sonnet 5, Fable 5) is in
-> ["Multi-model extension" below](#-multi-model-extension--sonnet-5--fable-5-added-tiko-030-added-2026-07-0102).
-> Everything above it in this file is superseded first-pass / confounded data, kept for
-> the audit trail.
+> **Start here:** the authoritative version-recency result (four model generations —
+> Sonnet 4.6, Opus 4.8, Sonnet 5, Fable 5) is in
+> ["Multi-model extension" below](#-multi-model-extension--sonnet-5--fable-5-added-tiko-030-added-2026-07-0102),
+> and the current-version Tiko result is in
+> ["Tiko 0.5.0"](#-tiko-050--clean-sweep-cost-story-mixed-2026-08-15) right after it
+> (0.3.0 is kept in the section above as the prior-version comparison point).
+> Everything above the Multi-model extension section is superseded first-pass /
+> confounded data, kept for the audit trail.
 
 ## Multi-model comparison (added 2026-06-13)
 
@@ -278,6 +281,93 @@ your way out of the version-recency blind spot with tokens** (Sonnet 5 spent mor
 Opus on Boot 4 and still went 0/5), and **capability + current knowledge beat
 brute-force exploration** (Fable got the best compliance results while writing less
 code than Opus, even if not at the lowest dollar cost).
+
+**Why Boot 4.0.6 costs more: the same iteration-count mechanism as the Tiko-vs-Spring
+gap (see "Cross-cell cost analysis" below), not more code.** Breaking real usage down by
+component, pooled across all four models, `spring-fix` (Boot 4.0.6) vs `spring3-fix`
+(Boot 3.3.5):
+
+| | spring3-fix (Boot 3.3.5) | spring-fix (Boot 4.0.6) | Ratio | Share of the $0.24 cost gap |
+|---|---|---|---|---|
+| API calls (turns) | 20.6 | 29.9 | **1.45×** | — |
+| Output tokens (code written) | 3,710 | 3,276 | 0.88× (fewer) | ~0% |
+| Cache-write tokens | 33,874 | 43,744 | 1.29× | ~18% |
+| Cache-read tokens | 837,528 | 1,344,357 | **1.61×** | **~79%** |
+| **Total cost** | **$0.697** | **$0.935** | — | 100% |
+
+Models write about the same amount of code on Boot 4.0.6 as on Boot 3.3.5 — pooled,
+slightly *less* — but take ~45% more turns to get there, consistent across every model
+(Fable 10.8→13.8, Opus 18.0→24.8, Sonnet 4.6 26.7→35.2, Sonnet 5 28.2→46.0). That turn
+increase, not extra code, is almost the entire cost gap. Output tokens themselves move
+inconsistently by model: Fable writes **3.7× more** code on Boot 4 (682→2,530) — it's
+the only model that sometimes finds and applies the real fix
+(`spring-boot-starter-kafka`), which is genuinely more code — while Sonnet 5 writes
+**41% less** (7,705→4,530). So the extra turns are spent on *deliberation* (second-
+guessing the Kafka/Jackson dependency choice, checking Jackson-2-vs-3 compatibility,
+trying alternate serializer classes) rather than uniformly on more code — some models
+spend those extra turns and still commit to a smaller, wrong answer; the one model that
+finds the real fix writes more because the fix itself requires it.
+
+---
+
+### 🆕 Tiko 0.5.0 — clean sweep, cost story mixed (2026-08-15)
+
+Same protocol as the 0.3.0 run above (Opus 4.8 + Sonnet 5 + Fable 5, N=5 each), against
+`scaffolds/tiko5/notify/` — the 0.5.0 archetype scaffold (`tiko-archetype:0.5.0`, current
+latest on Maven Central; see `scaffolds/tiko5/GENERATE.md` for what changed archetype-side:
+the `REQUEST`/`EVENT` scope merge and the `.ai-skills/` restructuring into
+`tiko-build/reference/{api-signatures,config,events,kafka}.md`).
+
+| Trial | Opus 4.8 | Sonnet 5 | Fable 5 |
+|---|---|---|---|
+| 01–05 | 100 100 100 100 100 | 100 100 100 100 100 | 100 100 100 100 100 |
+| median | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
+
+**15/15 — a clean sweep**, up from 13/15 (87%) on 0.3.0. Both 0.3.0 failures were
+independent live reproductions of the same doc-gap issue
+([tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404), kebab-case config keys
+rejected by Tiko's `@Configuration` records); neither recurs anywhere in this run. That's
+consistent with — though not proof of — the doc gap actually having been closed between
+0.3.0 and 0.5.0.
+
+**Real average output tokens and cost per build** (same reconstruction method as above,
+`conformance/token-accounting.py` against the real subagent transcripts):
+
+| Model | tiko-030 tokens | tiko-050 tokens | Δ | tiko-030 cost | tiko-050 cost | Δ |
+|---|---|---|---|---|---|---|
+| Opus 4.8 | 4.2k | 16.3k | **+291%** | $2.65 | $2.96 | +12% |
+| Sonnet 5 | 6.7k | 14.7k | +120% | $3.62 | $1.90 | **−48%** |
+| Fable 5 | 2.2k | 0.6k | **−73%** | $3.44 | $1.62 | **−53%** |
+
+Two of three models got *both* more compliant and cheaper. Opus is the outlier: pricier
+despite the compliance win. The token and dollar columns don't move together, and the
+reason is a real, verifiable behavioral change, not noise:
+
+**Opus started writing and running its own integration test, every time.** Checking each
+trial workspace for a self-authored test file under `src/test/`: on 0.3.0, **0 of 15**
+trials across all three models wrote one. On 0.5.0: **Opus 5/5**, Sonnet 5 **1/5**, Fable
+5 **0/5**. This traces to a concrete doc change — `.ai-skills/tiko-build/reference/kafka.md`
+(new in 0.5.0) opens with *"Read this when: consuming/producing Kafka, or **writing the
+Kafka integration test**"* and points at the `FakeBroker*IT.java` pattern in
+`tiko-examples`. The restructured docs make self-testing an obvious, cheap next step —
+Opus reliably takes it, Sonnet 5 sometimes does, Fable essentially never does.
+
+That explains the split: Fable's cost fell the most (−53%) and it's the model that never
+self-tests either version, so its number is close to a clean read of the leaner
+`.ai-skills/` split needing less doc content pulled into context — fewer/smaller reference
+files to read before a correct build, same effect on the cheap cache-read side of the
+bill that dominated the Boot-4-vs-Boot-3 gap above. Sonnet 5's cost fell too (−48%)
+*despite* writing more real output tokens (+120%), which only makes sense if the
+input/cache-read side shrank enough to outweigh the extra output — same leaner-docs
+effect, partially offset by one self-test. Opus is the one case where the offset flips:
+writing and *compiling/running* its own test five times out of five costs more in
+output tokens (+291%) than the leaner docs save on the input side, so it nets **12%
+pricier** even though the underlying documentation genuinely improved.
+
+**Bottom line:** the 0.5.0 doc restructuring is a real compliance and (mostly) cost win —
+except it also taught at least one model a new habit (self-testing) that costs more than
+the docs save, for that model. Better docs don't uniformly cut cost; they can also invite
+more work.
 
 ---
 
