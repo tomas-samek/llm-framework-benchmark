@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://tomas-samek.github.io/banners/dark/llm-framework-benchmark.svg">
+  <img alt="llm-framework-benchmark: Same spec, different stacks, graded by an external oracle" src="https://tomas-samek.github.io/banners/light/llm-framework-benchmark.svg" width="100%">
+</picture>
+
 # LLM Framework Benchmark
 
 **How well can an AI coding agent build the *same specified system* on different frameworks?**
