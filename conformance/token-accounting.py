@@ -29,8 +29,9 @@ cache_read_input_tokens / output_tokens for that API call.
 Gotchas this script handles:
   1. A single API response can be split across multiple JSONL lines (one per
      content block: text, tool_use, tool_use, ...), each carrying an
-     IDENTICAL copy of that response's usage object. Naively summing every
-     line double/triple-counts. Dedupe by `message.id` first.
+     copy of that response's usage object. Naively summing every line
+     double/triple-counts. Dedupe by `message.id` first -- and keep the RIGHT
+     line (see 5): the copies are not identical.
   2. A subagent can itself dispatch a nested sub-agent (e.g. a background
      research agent). That nested agent's tokens are NOT in the parent's
      transcript but DO count toward the trial's real cost. This script finds
@@ -68,6 +69,16 @@ Gotchas this script handles:
      directories (bare `trial-01` rather than a longer cell-specific name)
      are more exposed to false matches in general -- double check results
      for those specifically if you extend this further.
+  5. The lines of one response do NOT all carry its final usage. Early lines
+     carry the stream-start snapshot: input/cache counts are final, but
+     `output_tokens` is a placeholder (typically 3-16) and `stop_reason` is
+     null. The final usage is only on a line with a non-null `stop_reason`.
+     Keeping the first line (as this script did until 2026-10-11) undercounts
+     output 2-33x. When no line has a stop_reason, only the placeholder exists;
+     `calls_without_final_usage` counts those calls, so output for them -- and
+     the trial's output total -- is a lower bound. Claude Code 2.1.296 records
+     final usage for only ~15% of calls, so check that count before quoting
+     output tokens. See results/pricing.md, "Erratum 2".
 
 CAVEAT -- TRANSCRIPT RETENTION
 -------------------------------
@@ -104,12 +115,23 @@ TRIALS = {
 }
 
 # $/1M tokens, regular (non-intro) output/input rates -- keep in sync with results/pricing.md
+# Optional per model: "read" = cache-read multiplier on the input rate (default 0.1);
+# "long" = rates for API calls whose prompt exceeds LONG_PROMPT_TOKENS (input +
+# cache write + cache read of that call). Cache writes are always 1.25x (5m) / 2x (1h).
 PRICES = {
     "claude-opus-4-8":   {"in": 5.00,  "out": 25.00},
     "claude-sonnet-4-6": {"in": 3.00,  "out": 15.00},
     "claude-fable-5":    {"in": 10.00, "out": 50.00},
     "claude-sonnet-5":   {"in": 3.00,  "out": 15.00},
+    "claude-opus-5":     {"in": 5.00,  "out": 25.00},
+    "claude-opus-5-5":   {"in": 4.00,  "out": 20.00, "read": 0.05},
+    "claude-sonnet-5-5": {"in": 2.00,  "out": 10.00},
+    # Cache multipliers for Haiku 5.5 aren't published separately; standard ones assumed.
+    "claude-haiku-5-5":  {"in": 0.10,  "out": 0.50, "long": {"in": 0.50, "out": 2.50}},
 }
+LONG_PROMPT_TOKENS = 100_000
+_TOKEN_KEYS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens",
+               "output_tokens", "ephemeral_1h")
 
 AGENT_ID_RE = re.compile(r"agentId:\s*([a-f0-9]+)")
 
@@ -240,14 +262,21 @@ def sum_usage_recursive(projects_root, sessions, session, agent_jsonl_filename, 
     seen = seen if seen is not None else set()
     path = os.path.join(_subagents_dir(projects_root, session), agent_jsonl_filename)
     tot = dict(input_tokens=0, cache_creation_input_tokens=0, cache_read_input_tokens=0,
-               output_tokens=0, ephemeral_1h=0, api_calls=0, nested=0)
+               output_tokens=0, ephemeral_1h=0, api_calls=0, nested=0,
+               calls_without_final_usage=0)
+    # The same token counts, restricted to calls whose prompt exceeded LONG_PROMPT_TOKENS.
+    tot.update({"long_" + k: 0 for k in _TOKEN_KEYS})
     if path in seen or not os.path.exists(path):
         return tot
     seen.add(path)
 
     lines = _load_lines(path)
 
-    by_msg_id, order = {}, []
+    # Older Claude Code versions repeated the response's final usage on every line of a
+    # message. Newer ones (seen in 2.1.296) write the stream-start snapshot -- placeholder
+    # output_tokens, stop_reason null -- on each line and the final usage only sometimes,
+    # on a last line that carries the stop_reason. Prefer that line; count the misses.
+    by_msg_id, final, order = {}, set(), []
     for obj in lines:
         if obj.get("type") != "assistant":
             continue
@@ -257,17 +286,28 @@ def sum_usage_recursive(projects_root, sessions, session, agent_jsonl_filename, 
         if not u or mid is None:
             continue
         if mid not in by_msg_id:
-            by_msg_id[mid] = u
             order.append(mid)
+        if mid not in final:
+            by_msg_id[mid] = u
+            if m.get("stop_reason") is not None:
+                final.add(mid)
 
     for mid in order:
         u = by_msg_id[mid]
-        tot["input_tokens"] += u.get("input_tokens", 0)
-        tot["cache_creation_input_tokens"] += u.get("cache_creation_input_tokens", 0)
-        tot["cache_read_input_tokens"] += u.get("cache_read_input_tokens", 0)
-        tot["output_tokens"] += u.get("output_tokens", 0)
-        tot["ephemeral_1h"] += (u.get("cache_creation") or {}).get("ephemeral_1h_input_tokens", 0)
+        call = dict(input_tokens=u.get("input_tokens", 0),
+                    cache_creation_input_tokens=u.get("cache_creation_input_tokens", 0),
+                    cache_read_input_tokens=u.get("cache_read_input_tokens", 0),
+                    output_tokens=u.get("output_tokens", 0),
+                    ephemeral_1h=(u.get("cache_creation") or {}).get("ephemeral_1h_input_tokens", 0))
+        prompt = (call["input_tokens"] + call["cache_creation_input_tokens"]
+                  + call["cache_read_input_tokens"])
+        for k in _TOKEN_KEYS:
+            tot[k] += call[k]
+            if prompt > LONG_PROMPT_TOKENS:
+                tot["long_" + k] += call[k]
         tot["api_calls"] += 1
+        if mid not in final:
+            tot["calls_without_final_usage"] += 1
 
     for nested_id in _find_nested_agent_ids(lines):
         nested_fname = f"agent-{nested_id}.jsonl"
@@ -283,16 +323,28 @@ def sum_usage_recursive(projects_root, sessions, session, agent_jsonl_filename, 
     return tot
 
 
-def cost(model, u):
-    p = PRICES[model]
+def _priced(u, rate_in, rate_out, read_mult):
     write_5m = u["cache_creation_input_tokens"] - u["ephemeral_1h"]
     write_1h = u["ephemeral_1h"]
-    c_in = u["input_tokens"] * p["in"] / 1e6
-    c_write = (write_5m * 1.25 + write_1h * 2.0) * p["in"] / 1e6
-    c_read = u["cache_read_input_tokens"] * p["in"] * 0.1 / 1e6
-    c_out = u["output_tokens"] * p["out"] / 1e6
-    return dict(input=c_in, write=c_write, read=c_read, output=c_out,
-                total=c_in + c_write + c_read + c_out)
+    return dict(input=u["input_tokens"] * rate_in / 1e6,
+                write=(write_5m * 1.25 + write_1h * 2.0) * rate_in / 1e6,
+                read=u["cache_read_input_tokens"] * rate_in * read_mult / 1e6,
+                output=u["output_tokens"] * rate_out / 1e6)
+
+
+def cost(model, u):
+    p = PRICES[model]
+    read_mult = p.get("read", 0.1)
+    if "long" in p and any(u.get("long_" + k) for k in _TOKEN_KEYS):
+        long_u = {k: u["long_" + k] for k in _TOKEN_KEYS}
+        short_u = {k: u[k] - long_u[k] for k in _TOKEN_KEYS}
+        a = _priced(short_u, p["in"], p["out"], read_mult)
+        b = _priced(long_u, p["long"]["in"], p["long"]["out"], read_mult)
+        c = {k: a[k] + b[k] for k in a}
+    else:
+        c = _priced(u, p["in"], p["out"], read_mult)
+    c["total"] = sum(c.values())
+    return c
 
 
 def main():
@@ -312,13 +364,14 @@ def main():
     sessions = sorted({session for _model, session, _fname in TRIALS.values()})
 
     print(f"{'trial':8} {'model':18} {'calls':>5} {'nest':>4} {'in':>8} {'write':>9} {'read':>10} {'out':>7} "
-          f"| {'$in':>6} {'$wr':>6} {'$rd':>6} {'$out':>6} {'$TOT':>7}")
+          f"| {'$in':>6} {'$wr':>6} {'$rd':>6} {'$out':>6} {'$TOT':>7} | no-final-usage calls")
     for trial, (model, session, fname) in TRIALS.items():
         u = sum_usage_recursive(projects_root, sessions, session, fname)
         c = cost(model, u)
         print(f"{trial:8} {model:18} {u['api_calls']:5} {u['nested']:4} {u['input_tokens']:8} "
               f"{u['cache_creation_input_tokens']:9} {u['cache_read_input_tokens']:10} {u['output_tokens']:7} | "
-              f"{c['input']:6.3f} {c['write']:6.3f} {c['read']:6.3f} {c['output']:6.3f} {c['total']:7.3f}")
+              f"{c['input']:6.3f} {c['write']:6.3f} {c['read']:6.3f} {c['output']:6.3f} {c['total']:7.3f} | "
+              f"{u['calls_without_final_usage']}/{u['api_calls']}")
 
 
 if __name__ == "__main__":

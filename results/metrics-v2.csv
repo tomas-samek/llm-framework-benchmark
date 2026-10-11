@@ -1,1 +1,16 @@
 timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_tokens,agent_turns,tool_calls,cost_usd
+2026-10-11T14:50:07Z,claude-opus-5-5,tiko-060,stage-1,01,100,86,16750,,,1.412
+2026-10-11T14:51:53Z,claude-opus-5-5,tiko-060,stage-1,02,100,86,14547,,,1.277
+2026-10-11T14:53:38Z,claude-opus-5-5,tiko-060,stage-1,03,100,87,11253,,,1.208
+2026-10-11T14:55:25Z,claude-opus-5-5,tiko-060,stage-1,04,100,87,13578,,,1.126
+2026-10-11T14:57:11Z,claude-opus-5-5,tiko-060,stage-1,05,100,87,14613,,,1.248
+2026-10-11T14:59:00Z,claude-sonnet-5-5,tiko-060,stage-1,01,100,87,,,,0.310
+2026-10-11T15:00:47Z,claude-sonnet-5-5,tiko-060,stage-1,02,100,87,7060,,,0.360
+2026-10-11T15:02:35Z,claude-sonnet-5-5,tiko-060,stage-1,03,100,87,5357,,,0.323
+2026-10-11T15:04:22Z,claude-sonnet-5-5,tiko-060,stage-1,04,100,87,,,,0.341
+2026-10-11T15:06:09Z,claude-sonnet-5-5,tiko-060,stage-1,05,100,87,6609,,,0.414
+2026-10-11T15:07:56Z,claude-haiku-5-5,tiko-060,stage-1,01,86,87,24417,,,0.120
+2026-10-11T15:09:42Z,claude-haiku-5-5,tiko-060,stage-1,02,100,87,13355,,,0.027
+2026-10-11T15:11:28Z,claude-haiku-5-5,tiko-060,stage-1,03,100,87,8527,,,0.056
+2026-10-11T15:13:14Z,claude-haiku-5-5,tiko-060,stage-1,04,100,87,10600,,,0.049
+2026-10-11T15:15:00Z,claude-haiku-5-5,tiko-060,stage-1,05,100,87,6483,,,0.024

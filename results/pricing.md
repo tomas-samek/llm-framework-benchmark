@@ -10,13 +10,63 @@ Anthropic API, per-million-tokens, standard (non-batch) rate.
 | Claude Sonnet 5 (`claude-sonnet-5`) | $3.00 (intro $2.00 through 2026-08-31) | $15.00 (intro $10.00 through 2026-08-31) |
 | Claude Sonnet 4.6 (`claude-sonnet-4-6`) | $3.00 | $15.00 |
 
-Cache multipliers (applied to the *input* rate above): cache write ×1.25 (5-minute
-TTL) or ×2 (1-hour TTL); cache read ×0.1. `cost_usd` in `results/stage-2-loop.csv`
-and `results/metrics.csv` is `input×price_in + cache_write×price_in×1.25 +
-cache_read×price_in×0.1 + output×price_out`, all divided by 1e6 — i.e. the
-**full**, correctly-weighted cost, not an output-only proxy.
+Added 2026-10-11 (from the Claude API model reference cached 2026-10-06):
 
-## Erratum: `subagent_tokens` is not output tokens (corrected 2026-07-03)
+| Model | Input $/1M | Output $/1M | Notes |
+|---|---|---|---|
+| Claude Opus 5 (`claude-opus-5`) | $5.00 | $25.00 | |
+| Claude Opus 5.5 (`claude-opus-5-5`) | $4.00 | $20.00 | cache read $0.20 = **×0.05** of input |
+| Claude Sonnet 5.5 (`claude-sonnet-5-5`) | $2.00 | $10.00 | |
+| Claude Haiku 5.5 (`claude-haiku-5-5`) | $0.10 | $0.50 | $0.50 / $2.50 for calls whose prompt exceeds 100K tokens; cache multipliers not published separately — standard ones assumed |
+
+That reference now lists Claude Sonnet 5 at $2.00 / $10.00 (the former intro rate). The
+historical Sonnet 5 rows are still priced at $3.00 / $15.00 as above; they were not
+re-priced.
+
+Cache multipliers (applied to the *input* rate above): cache write ×1.25 (5-minute
+TTL) or ×2 (1-hour TTL); cache read ×0.1 (×0.05 for Opus 5.5). `cost_usd` in
+`results/stage-2-loop.csv` and `results/metrics.csv` is `input×price_in +
+cache_write×price_in×1.25 + cache_read×price_in×read_mult + output×price_out`, all
+divided by 1e6 — i.e. the **full**, correctly-weighted cost, not an output-only proxy.
+
+## Erratum 2: output tokens were read from stream-start placeholders (corrected 2026-10-11)
+
+**What was wrong.** Claude Code writes a response to the transcript as several lines
+(one per content block) sharing a `message.id`. The fix in Erratum 1 ("dedupe by
+`message.id`") assumed every line carried an identical copy of the response's final
+usage and kept the **first** line. They don't: the early lines carry the *stream-start*
+usage — input and cache counts are already final there, but `output_tokens` is a
+placeholder (typically 3–16) and `stop_reason` is null; only the last line, the one with
+a non-null `stop_reason`, carries the final usage. Example (Sonnet 5, `tiko-050`
+s5-03): one message's lines read `output_tokens` 8, 8, then **12,231** — the message
+contained 11.7k characters of thinking. Keeping the first line undercounted output for
+every trial: **2–33× per cell** (12,999 published vs 49,876 real for that trial), and
+cost **1.1–1.7×**. Input, cache-write and cache-read counts — and therefore the turn and
+cache-volume analyses — were correct.
+
+**The fix** (`conformance/token-accounting.py`): per `message.id`, use the line with a
+non-null `stop_reason` when one exists, and count the calls that have none
+(`calls_without_final_usage`). For those calls the placeholder is all there is, so
+**every corrected output figure is a lower bound**; coverage is per trial in
+`results/token-audit.csv` (62–97% of calls per cell historically; Sonnet 5 cells the
+lowest). Claude Code 2.1.296 (the `tiko-060` run) records final usage far less often —
+12–17% of calls — so `tiko-060` output tokens are a loose lower bound, while its
+input-side cost (input + cache write + cache read) remains exact.
+
+**How the corrected numbers were verified.** Every published row was re-matched to its
+transcript by fingerprint: the old first-line rule must reproduce the published
+`output_tokens` exactly. 132 of 136 published rows matched exactly one transcript this
+way; the rest were resolved by cell + trial + model (two coincidental fingerprint
+collisions, one `loop01` directory-name variant, and one Sonnet 5 trial whose transcript
+shows 25,148 against a published 25,088). Three rows (`tiko-mcp`: Sonnet 4.6 #03, Opus
+4.8 #04, Fable 5 #04) exist only as session-limit-truncated transcripts and remain
+understated. The same pass found two **model mislabels**, corrected in the CSVs:
+`tiko-050` Opus rows ran on `claude-opus-5` (published as `claude-opus-4-8`), and the
+Stage-2 `s-01..03` rows ran on `claude-sonnet-5` (published as `claude-sonnet-4-6`).
+`results/token-audit.csv` lists every row's old and new values, transcript, and
+final-usage coverage.
+
+## Erratum 1: `subagent_tokens` is not output tokens (corrected 2026-07-03)
 
 An earlier version of this benchmark used the Agent-tool dispatch's reported
 `subagent_tokens` figure as `tokens_to_compliance`, and computed `cost_usd` as

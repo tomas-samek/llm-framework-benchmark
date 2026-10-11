@@ -2,7 +2,7 @@
 
 Generated once (2026-10-11), committed untouched. Every trial copies this tree. This
 is the **0.6.0** counterpart to `scaffolds/tiko5/notify/` (0.5.0) — same archetype
-command, newer pinned version. Not yet benchmarked.
+command, newer pinned version. Benchmarked 2026-10-11 as the `tiko-060` cell.
 
 > **Generated from Maven Central, not `~/.m2`.** The generating machine had a
 > locally-installed (pre-release) `tiko-archetype:0.6.0` in `~/.m2` whose template

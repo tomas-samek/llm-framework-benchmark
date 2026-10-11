@@ -4,10 +4,61 @@
 > Sonnet 4.6, Opus 4.8, Sonnet 5, Fable 5) is in
 > ["Multi-model extension" below](#-multi-model-extension--sonnet-5--fable-5-added-tiko-030-added-2026-07-0102),
 > and the current-version Tiko result is in
-> ["Tiko 0.5.0"](#-tiko-050--clean-sweep-cost-story-mixed-2026-08-15) right after it
-> (0.3.0 is kept in the section above as the prior-version comparison point).
+> ["Tiko 0.6.0"](#-tiko-060--three-new-models-first-run-graded-on-both-fixture-sets-2026-10-11)
+> (0.5.0 and 0.3.0 are kept just above it as prior-version comparison points). Read the
+> [2026-10-11 erratum](#erratum-2026-10-11-output-tokens-undercounted-two-model-mislabels)
+> before any token or cost figure.
 > Everything above the Multi-model extension section is superseded first-pass /
 > confounded data, kept for the audit trail.
+
+## Erratum (2026-10-11): output tokens undercounted; two model mislabels
+
+Read this before any token or cost figure below. Full method: `results/pricing.md` →
+"Erratum 2"; every row's old and new values: `results/token-audit.csv`. **Compliance
+results are unaffected.**
+
+1. **Output tokens were undercounted 2–33× per cell, costs 1.1–1.7×.** The transcript
+   reconstruction kept each API response's first transcript line, whose `output_tokens`
+   is a stream-start placeholder; the final usage is on the response's last line. Input
+   and cache counts were right, so every turn-count and cache-volume statement stands.
+   Corrected figures are still **lower bounds** (62–97% of calls per cell have a final
+   usage record). `results/metrics.csv` and `results/stage-2-loop.csv` now carry the
+   corrected values; tables marked *(superseded — see erratum)* below are kept as
+   published.
+2. **`tiko-050` "Opus 4.8" was Claude Opus 5**, and **Stage-2 "Sonnet 4.6" (s-01..03)
+   was Claude Sonnet 5** — the trial transcripts record the model; the `opus`/`sonnet`
+   aliases had moved on. The CSV model columns are corrected.
+
+**Corrected Stage-1 headline** (spring-fix = Boot 4.0.6, spring3-fix = Boot 3.3.5,
+tiko-030 = Tiko 0.3.0; average per build):
+
+| Model | Output tokens: spring-fix | spring3-fix | tiko-030 | Cost: spring-fix | spring3-fix | tiko-030 |
+|---|---|---|---|---|---|---|
+| Sonnet 4.6 | 10.1k | 7.6k | — | $0.62 | $0.42 | — |
+| Opus 4.8 | 13.3k | 13.3k | 22.5k | $1.11 | $0.89 | $3.11 |
+| Sonnet 5 | 23.3k | 17.6k | 40.9k | $1.45 | $0.91 | $4.14 |
+| Fable 5 | 16.3k | 12.3k | 27.0k | $1.90 | $1.47 | $4.68 |
+
+**Claims that change:**
+- *"Fable 5 uses fewer real output tokens than Opus 4.8 in every cell"* — false; Fable
+  writes more in spring-fix and tiko-030, and is the **most expensive model in all three
+  cells** (not two of three). Sonnet 5 uses 1.3–1.8× Opus 4.8's output (not 1.6–2.7×).
+- *Boot 4 vs Boot 3:* models write **~19% more** output on Boot 4.0.6, not slightly less
+  (Fable 1.33×, Sonnet 5 1.32×, Sonnet 4.6 1.34×, Opus 4.8 1.00× — not "Fable 3.7×,
+  Sonnet 5 −41%"). Output is ~19% of the $0.28 cost gap (not ~0%); turns (1.46×) and
+  cache-read (~66%) still dominate.
+- *Tiko 0.3.0 → 0.5.0:* Sonnet 5 tokens −7% (not +120%), cost −43%; Fable 5 tokens −27%
+  (not −73%), cost −45%. The Opus row compares **Opus 4.8 on 0.3.0 with Opus 5 on 0.5.0**
+  (22.5k → 39.8k tokens, $3.11 → $3.54), so its "self-testing habit taught by the new
+  docs" explanation is confounded by a model change and can't be attributed to the docs.
+- *Cross-cell (Tiko vs Spring):* the headline holds — for every model, the cheapest
+  Tiko-family cell average still exceeds the priciest Spring-family one — but output is
+  ~13% of the $2.51 gap (not ~2%), output grows 1.8× pooled (Opus 4.8 +46%, Sonnet 5
+  +100% — not +6% / +9%); cache read ~60% and cache write ~26% remain the bulk.
+- *Stage 2:* three models, not four (Sonnet 5 sampled twice). Opus 4.8 is still cheapest
+  (avg $1.23); Sonnet 5 batch A (3, 2, 3 iterations) is most expensive (avg $2.89; its
+  s-03 at $5.22 is the costliest trial), batch B (2, 1, 2) averages $1.25; Fable 5
+  averages $1.84.
 
 ## Multi-model comparison (added 2026-06-13)
 
@@ -250,6 +301,7 @@ The corrected numbers below use the completed transcript in every case.
 
 Real average output tokens per build:
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | spring-fix (Boot 4.0.6) | spring3-fix (Boot 3.3.5) | tiko-030 (Tiko 0.3.0) |
 |---|---|---|---|
 | Sonnet 4.6 | 3.4k | 3.0k | — |
@@ -260,6 +312,7 @@ Real average output tokens per build:
 Real average cost per build (input + cache-write + cache-read + output, each priced
 correctly — see `results/pricing.md`):
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | spring-fix | spring3-fix | tiko-030 |
 |---|---|---|---|
 | Sonnet 4.6 | **$0.52** | **$0.35** | — |
@@ -287,6 +340,7 @@ gap (see "Cross-cell cost analysis" below), not more code.** Breaking real usage
 component, pooled across all four models, `spring-fix` (Boot 4.0.6) vs `spring3-fix`
 (Boot 3.3.5):
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | | spring3-fix (Boot 3.3.5) | spring-fix (Boot 4.0.6) | Ratio | Share of the $0.24 cost gap |
 |---|---|---|---|---|
 | API calls (turns) | 20.6 | 29.9 | **1.45×** | — |
@@ -312,13 +366,13 @@ finds the real fix writes more because the fix itself requires it.
 
 ### 🆕 Tiko 0.5.0 — clean sweep, cost story mixed (2026-08-15)
 
-Same protocol as the 0.3.0 run above (Opus 4.8 + Sonnet 5 + Fable 5, N=5 each), against
+Same protocol as the 0.3.0 run above (Opus + Sonnet 5 + Fable 5, N=5 each — the Opus trials ran on **Claude Opus 5**, not Opus 4.8; see the erratum at the top), against
 `scaffolds/tiko5/notify/` — the 0.5.0 archetype scaffold (`tiko-archetype:0.5.0`, current
 latest on Maven Central; see `scaffolds/tiko5/GENERATE.md` for what changed archetype-side:
 the `REQUEST`/`EVENT` scope merge and the `.ai-skills/` restructuring into
 `tiko-build/reference/{api-signatures,config,events,kafka}.md`).
 
-| Trial | Opus 4.8 | Sonnet 5 | Fable 5 |
+| Trial | Opus 5 (published as "Opus 4.8") | Sonnet 5 | Fable 5 |
 |---|---|---|---|
 | 01–05 | 100 100 100 100 100 | 100 100 100 100 100 | 100 100 100 100 100 |
 | median | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
@@ -333,6 +387,7 @@ consistent with — though not proof of — the doc gap actually having been clo
 **Real average output tokens and cost per build** (same reconstruction method as above,
 `conformance/token-accounting.py` against the real subagent transcripts):
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | tiko-030 tokens | tiko-050 tokens | Δ | tiko-030 cost | tiko-050 cost | Δ |
 |---|---|---|---|---|---|---|
 | Opus 4.8 | 4.2k | 16.3k | **+291%** | $2.65 | $2.96 | +12% |
@@ -371,6 +426,71 @@ more work.
 
 ---
 
+### 🆕 Tiko 0.6.0 — three new models, first run graded on both fixture sets (2026-10-11)
+
+Same protocol and dispatch prompt as 0.5.0 (version and path changed only), against
+`scaffolds/tiko6/notify/` (`tiko-archetype:0.6.0`, generated from Maven Central — see
+`scaffolds/tiko6/GENERATE.md`), on the current model generation: **Claude Opus 5.5,
+Sonnet 5.5, Haiku 5.5** (model IDs verified from each trial's transcript), N=5 each.
+Builds ran in parallel with no broker; grading was sequential with a fresh broker per
+trial, each trial restored from its post-build snapshot before every grading (several
+apps keep H2 in a file under `./data/`, which must not carry over between gradings).
+Every trial was graded on **v1** (`scenarios.json`, comparable with all earlier cells)
+and **v2** (`scenarios.v2.json`, see `fixtures/stage-1/README.md`).
+
+| Model | v1 (01–05) | v1 median | v2 (01–05) | v2 median |
+|---|---|---|---|---|
+| Opus 5.5 | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
+| Sonnet 5.5 | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
+| Haiku 5.5 | 100 100 100 100 100 | **100%** (5/5) | **86** 100 100 100 100 | **100%** (4/5) |
+
+**v1: 15/15. v2: 14/15 — and the one difference is exactly what v2 was built to see.**
+Haiku h55-01 registered a `KafkaIngestErrorDecider` meant to SKIP undecodable records
+by looking for an `IOException` in the cause chain; Tiko 0.6.0 raises an
+`IllegalStateException` there, so the check missed and the decider SEEKed 5 times with
+the default doubling backoff (~15 s) before skipping. On v2 that stall held back AC5's
+fresh price (`priceCents` null for buy5, 6/7). On v1 the same app scored 7/7: AC5's price
+was already stored, and the stall was over by the time AC6 republished prices — the
+exact masking v2 removes.
+
+**Poison handling — every trial overrode the default.** 0.6.0's docs (newly prominent)
+explain that `poison-record-policy` defaults to `SEEK` — a bad record blocks its
+partition — and advise against `SKIP`; the spec requires log-and-skip. All 15 trials
+reconciled the two without blocking: 12 registered a `KafkaIngestErrorDecider` (SKIP on
+deserialization failure, bounded SEEK otherwise), 2 (Sonnet) set `poison-record-policy:
+SKIP` and said so explicitly, and 1 (Haiku h55-04) bypassed the policy with a raw-bytes
+serializer plus parse-and-skip in its handlers. None hit the SEEK-forever stall the
+v1-era 86% Tiko trials are suspected of (see the erratum at the top).
+
+**Self-testing:** Opus 5.5 wrote and ran its own integration test against
+`FakeKafkaBroker` in 5/5 trials (as Opus 5 did on 0.5.0); Sonnet 5.5 and Haiku 5.5 in
+0/5.
+
+**Cost.** This run's transcripts (Claude Code 2.1.296) carry a final usage record for
+only ~15% of API calls, so output tokens are a loose lower bound (blank in
+`metrics.csv` for the two trials with no final record at all); the input side —
+input + cache write + cache read — is exact. Per build, median:
+
+| Model | Input-side cost (exact) | Output tokens (lower bound) | Calls with final usage |
+|---|---|---|---|
+| Opus 5.5 | $0.98 | ≥ 14.5k | 19/114 |
+| Sonnet 5.5 | $0.31 | ≥ 5.4k | 3/55 |
+| Haiku 5.5 | $0.04 | ≥ 10.6k | 12/81 |
+
+Opus 5.5's cache reads are priced at 0.05× input; Haiku 5.5 bills calls with prompts
+over 100K tokens at its higher rate (three Haiku trials crossed it) — both
+handled in `conformance/token-accounting.py`.
+
+**Run notes.** (1) Haiku h55-03's first v1 grading was invalid (0%): a contestant shell
+stuck on `python -` reading an empty here-doc kept a handle on the trial directory, the
+restore's delete failed partway, and the snapshot was copied into a nested directory, so
+the app had no `pom.xml`. The shell tree was killed (the shell would otherwise have gone
+on to overwrite the trial's `pom.xml`), and h55-03 was re-graded on v1 from its snapshot:
+100%; its v2 grading, after a clean restore, was also 100%. (2) Haiku h55-01 checked H2
+`MERGE` syntax in a scratch directory under the system temp folder (deleted afterwards) —
+outside its trial directory, against the "work only here" rule; it read only Maven-cache
+jars, no other project, fixture or result, so the trial is kept.
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
@@ -397,6 +517,7 @@ read**: `results/pricing.md`.
 
 **Result — the version-recency wall is NOT iteration-proof, on any model.**
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | Converged | Iterations to pass | Output tokens (real) | Cost to compliance ($, real — input + cache write/read + output) |
 |---|---|---|---|---|
 | Fable 5 | **3/3** | 2, 2, **1** | 2286, 1986, 1164 (avg **1812** — lowest) | $1.62, $1.34, $0.84 (avg $1.26) |
@@ -484,6 +605,7 @@ not just the 51-trial headline table — surfaces a consistent, model-independen
 **for every model tested, Tiko's cheapest cell-average build cost exceeds Spring's most
 expensive cell-average build cost.**
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | Priciest Spring-family cell (avg) | Cheapest Tiko-family cell (avg) | Tiko-family always pricier on average |
 |---|---|---|---|
 | Sonnet 4.6 | spring-fix: $0.52 | tiko: $2.21 | yes |
@@ -503,6 +625,7 @@ because the agent has to hand-write more code (no first-party DB/HTTP module) �
 minor contributor. Breaking real usage down by component (pooled across all models,
 Spring-family vs Tiko-family):
 
+*(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | | Spring (avg) | Tiko (avg) | Ratio | Share of the $2.23 cost gap |
 |---|---|---|---|---|
 | API calls (turns) | 26.5 | 56.0 | **2.1×** | — |

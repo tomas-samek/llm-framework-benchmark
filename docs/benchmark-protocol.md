@@ -71,7 +71,7 @@ copy of the golden scaffold.
 | `scaffolds/tiko/` | Tiko 0.2.2 (historical) | `tiko`, `tiko-mcp` |
 | `scaffolds/tiko3/` | Tiko 0.3.0 (historical) | `tiko-030` |
 | `scaffolds/tiko5/` | Tiko 0.5.0 | `tiko-050` |
-| `scaffolds/tiko6/` | Tiko 0.6.0 (current; not yet benchmarked) | — |
+| `scaffolds/tiko6/` | Tiko 0.6.0 (current) | `tiko-060` (graded on v1 and v2 fixtures) |
 
 \* Before 2026-06-13 the Spring scaffolds were core-only (no `spring-boot-starter-json`);
 see the "Spring scaffold confound" section of `results/RESULTS.md`. That revision is in
@@ -101,9 +101,9 @@ yields at generation time (this is part of the as-shipped condition):
   serves only supported lines; 3.3.x is no longer offered, so it cannot be
   pinned via `spring init`.)
 - **Tiko `0.6.0`** via `tiko-archetype:0.6.0` (latest on Maven Central as of
-  2026-10-11; scaffold in `scaffolds/tiko6/`, **not yet benchmarked**). The most
-  recent benchmarked release is **`0.5.0`** (2026-08-15); `0.2.2` and `0.3.0` remain
-  as historical/comparison cells — see `results/RESULTS.md`. (`0.4.0` was skipped.)
+  2026-10-11; scaffold in `scaffolds/tiko6/`, benchmarked 2026-10-11 as `tiko-060`).
+  `0.5.0` (2026-08-15), `0.2.2` and `0.3.0` remain as historical/comparison cells —
+  see `results/RESULTS.md`. (`0.4.0` was skipped.)
 
 The Lucene/H2/Kafka substrate versions above are pinned independently of the
 framework versions and are identical for both contestants.

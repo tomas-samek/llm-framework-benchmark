@@ -28,8 +28,9 @@ tests), with hooks for **efficiency** and **code quality**.
 > MCP topology server. So in this benchmark Tiko is a deliberate test case for the
 > question *"can an agent succeed on a framework it was never trained on, given
 > good in-repo affordances?"* — which is also why it makes a fair foil for a
-> brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: largely
-> yes — 86% median, vs Boot-4's 0%.)
+> brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: yes — 86%
+> median on Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations,
+> vs Boot-4's 0%.)
 
 ## Headline results — Stage 1
 
@@ -55,55 +56,63 @@ retrieved it **1 time in 5**; no other model ever found it. The blind spot weake
 model recency; it does not disappear.
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
-on the most recent benchmarked release (Tiko 0.6.0 is out; its scaffold is ready but
-not yet benchmarked):
+on the current release with the current model generation:
 
-| Framework | Opus 4.8 | Sonnet 5 | Fable 5 |
+| Framework | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
-| Tiko **0.5.0** | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
+| Tiko **0.6.0** — v1 fixtures | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
+| Tiko **0.6.0** — v2 fixtures | **100%** (5/5) | **100%** (5/5) | **100%** median (4/5) |
 
-**Every one of 15 trials passes — a clean sweep.** This is an improvement over the
-previous pinned version, Tiko 0.3.0, where Opus and Sonnet 5 each had one failure (both
-independently reproducing a documentation gap, [tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404),
-filed from static analysis *before* those runs) — see `results/RESULTS.md` → "Tiko
-0.5.0" for the full before/after comparison, including a real cost story that's more
-mixed than the compliance one.
+**15/15 on the original fixtures, 14/15 on the stricter v2 set** (see
+[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md)). The one v2 miss is a Haiku
+trial whose bad-message handler retried for ~15 s instead of skipping at once — a stall
+v1 couldn't see. Tiko 0.6.0's docs now steer agents toward blocking on bad messages
+(`SEEK`), which contradicts the spec's log-and-skip; all 15 trials noticed and overrode
+it. Even the smallest current model builds this correctly on a framework it was never
+trained on.
 
-**Token cost (re-verified 2026-07-03 — see erratum).** An earlier version of this
-table used the Agent-tool dispatch's `subagent_tokens` figure, which turned out to
-measure something closer to "final conversation context size" than "output tokens
-generated" (see `results/pricing.md`). All 51 trials behind this table were
-re-verified by reconstructing real per-call usage from Claude Code's persisted
-subagent transcripts (`conformance/token-accounting.py`) — real average output
-tokens per build:
+The previous release, Tiko 0.5.0, was also a clean sweep (15/15) on the previous model
+generation — Opus 5, Sonnet 5, Fable 5. (Its Opus column was first published as
+"Opus 4.8"; the trial transcripts show the `opus` alias had already moved to **Claude
+Opus 5** — corrected 2026-10-11.) It improved on Tiko 0.3.0, where Opus 4.8 and Sonnet 5
+each had one failure (both independently reproducing a documentation gap,
+[tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404), filed from static
+analysis *before* those runs). See `results/RESULTS.md` → "Tiko 0.6.0" and "Tiko 0.5.0".
+
+**Token cost (corrected 2026-10-11 — see the erratum in `results/pricing.md`).** Usage
+is reconstructed from Claude Code's persisted subagent transcripts
+(`conformance/token-accounting.py`). The earlier version of these tables read each API
+response's *stream-start* usage record, whose `output_tokens` is a placeholder (often
+3–16), instead of its final record — so it **undercounted output 2–18×** and cost
+1.1–1.7×. Real average output tokens per build:
 
 | Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
 |---|---|---|---|
-| Sonnet 4.6 | 3.4k | 3.0k | — |
-| Opus 4.8 | 2.6k | 2.8k | 4.2k |
-| Sonnet 5 | **4.5k** | **7.7k** | **6.7k** |
-| Fable 5 | 2.5k | 0.7k | 2.2k |
+| Sonnet 4.6 | 10.1k | 7.6k | — |
+| Opus 4.8 | 13.3k | 13.3k | 22.5k |
+| Sonnet 5 | **23.3k** | **17.6k** | **40.9k** |
+| Fable 5 | 16.3k | 12.3k | 27.0k |
 
-Sonnet 5 still uses meaningfully more tokens than Opus 4.8 on identical tasks for the
-same compliance (1.6×–2.7× depending on cell) — but tokens aren't dollars. Real
-average cost per build (input + cache-write + cache-read + output, each priced
-correctly for its model):
+These are still lower bounds: 62–91% of a cell's API calls have a final usage record
+(the rest only the placeholder; per-trial coverage in `results/token-audit.csv`) — the
+Sonnet 5 cells are the least complete (62–65%). Sonnet 5 uses the most tokens on
+identical tasks for the same compliance (1.3×–1.8× Opus 4.8) — but tokens aren't
+dollars. Real average cost per build (input + cache-write + cache-read + output, each
+priced correctly for its model):
 
 | Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
 |---|---|---|---|
-| Sonnet 4.6 | **$0.52** | **$0.35** | — |
-| Opus 4.8 | $0.85 | $0.63 | $2.65 |
-| Sonnet 5 | $1.17 | $0.76 | $3.62 |
-| Fable 5 | $1.21 | $0.88 | **$3.44** |
+| Sonnet 4.6 | **$0.62** | **$0.42** | — |
+| Opus 4.8 | $1.11 | $0.89 | **$3.11** |
+| Sonnet 5 | $1.45 | $0.91 | $4.14 |
+| Fable 5 | $1.90 | $1.47 | $4.68 |
 
-**Fable 5 uses fewer real output tokens than Opus 4.8 in every single cell** (0.7k–2.5k
-vs 2.6k–4.2k) — the opposite of what the flawed numbers implied — but is still the
-**most expensive per build in dollars** in two of three cells, because its $50/1M
-output and $10/1M input rates outweigh the lower token count. Sonnet 4.6 is the
-cheapest model in every cell it has data for. Spending more tokens doesn't buy
-correctness, and fewer tokens doesn't mean cheaper; current knowledge determines
-correctness, and per-model pricing determines cost, largely independently of each
-other.
+**Fable 5 is the most expensive model per build in every cell**, and it writes *more*
+output than Opus 4.8 in two of three (the earlier claim that it wrote less everywhere
+was an artifact of the placeholder records). Sonnet 4.6 is the cheapest model in every
+cell it has data for. Spending more tokens doesn't buy correctness: current knowledge
+determines correctness, and per-model pricing and iteration count determine cost,
+largely independently of each other.
 
 ### What it found
 
@@ -119,22 +128,22 @@ other.
    only one that ever produced the fix (`spring-boot-starter-kafka`) — **once in five
    tries**. The blind spot weakens with model recency; it does not close.
 
-2. **Token spend and correctness are uncorrelated here.** Sonnet 5 spent 1.6×–2.7× the
-   real tokens of Opus 4.8 on identical tasks for the same compliance (deeper
-   bytecode-level exploration that didn't change outcomes), while Fable 5 wrote *less*
-   code than Opus in every cell yet got the best compliance results of any model —
-   though not at the lowest dollar cost, since its per-token pricing is highest. What
-   separated models on compliance was *what they knew*, not *how hard they worked*.
+2. **Token spend and correctness are uncorrelated here.** Sonnet 5 spent 1.3×–1.8× the
+   real output tokens of Opus 4.8 on identical tasks for the same compliance (deeper
+   bytecode-level exploration that didn't change outcomes), while Fable 5 got the best
+   compliance results of any model at the highest dollar cost per build. What separated
+   models on compliance was *what they knew*, not *how hard they worked*.
 
 3. **An out-of-training-corpus framework with in-repo docs holds up well — and keeps
    improving.** Tiko 0.3.0 reached 100% median for both Opus 4.8 and Sonnet 5, with the
    sole failures being already-filed documentation gaps (kebab-case vs. camelCase config
    keys), not framework defects. On the most recent benchmarked release, **Tiko 0.5.0, all three models
    go 15/15 (100%)** — that doc gap doesn't recur anywhere in the newer run. The 0.5.0
-   doc restructuring is also mostly a cost win, except it taught Opus a new habit
-   (self-authoring its own integration test in 5/5 trials, traced to a specific new
-   doc file) that costs it more than the leaner docs save — see `results/RESULTS.md` →
-   "Tiko 0.5.0".
+   docs are also a cost win for the models measured on both versions (Sonnet 5 −43%,
+   Fable 5 −45% per build). The Opus trials on 0.5.0 self-authored an integration test
+   5/5 times and cost more — but they ran on Opus 5, not the Opus 4.8 measured on
+   0.3.0, so that change can't be pinned on the docs — see `results/RESULTS.md` →
+   "Erratum (2026-10-11)".
 
 4. **The MCP topology server showed no compliance lift** in the original Tiko 0.2.2
    run — `tiko` and `tiko-mcp` were identical (`0 0 86 86 100`). The validation gate
@@ -152,10 +161,11 @@ other.
    (`results/metrics.csv`, every cell including the pre-"-fix" originals), Tiko's
    cheapest cell-average build cost exceeds Spring's priciest cell-average build cost,
    for every model tested. The obvious hypothesis — Tiko costs more because the agent
-   hand-writes more code (no first-party DB/HTTP module) — turns out to be a minor
-   contributor: actual code written (output tokens) is only ~2% of the cost gap. What
-   dominates is **~2× more turns on every model** (most extreme for Sonnet 4.6, a 3.2×
-   increase), which compounds into ~4× more re-read conversation context — the agent
+   hand-writes more code (no first-party DB/HTTP module) — turns out to be a secondary
+   contributor: output tokens are ~13% of the cost gap (corrected 2026-10-11; first
+   published as ~2% from placeholder usage records). What dominates is **~2× more turns
+   on every model** (most extreme for Sonnet 4.6, a 3.2× increase), which compounds into
+   ~4× more re-read conversation context (~86% of the gap with cache writes) — the agent
    needs more *rounds* to discover Tiko's undocumented API surface and satisfy its
    strict compile-time DI validation, not more *lines*. See `results/RESULTS.md` →
    "Cross-cell cost analysis" for the full component breakdown.
@@ -171,26 +181,31 @@ Stage 1 is one-shot: build, grade, done — the agent never runs its own app. St
 keeps the *identical* task but lets the agent iterate against a CI-gate (pass/fail per
 scenario, no expected values — mirrors a black-box integration-test suite) until it
 believes it complies. Only the Boot 4.0.6 cell is informative (everything else already
-complies one-shot). N=3 per model, four models. Full write-up, methodology, and a
-[token-accounting erratum](results/pricing.md) worth reading:
+complies one-shot). Four batches of N=3 on three models. Full write-up, methodology, and
+the [token-accounting errata](results/pricing.md) worth reading:
 [`results/RESULTS.md`](results/RESULTS.md#stage-2--loop-until-complies-2026-07-0203-cost-corrected-2026-07-03).
 
 | Model | Converged | Iterations to pass | Cost to compliance ($, real — input + cache write/read + output) |
 |---|---|---|---|
-| Fable 5 | **3/3** | 2, 2, **1** | avg **$1.26** |
-| Opus 4.8 | **3/3** | 2, 2, 2 | avg **$0.99** — cheapest |
-| Sonnet 5 | **3/3** | 2, **1**, 2 | avg **$1.06** |
-| Sonnet 4.6 | **3/3** | 3, 2, 3 | avg **$2.52** — most expensive, by ~2.5× |
+| Fable 5 | **3/3** | 2, 2, **1** | avg **$1.84** |
+| Opus 4.8 | **3/3** | 2, 2, 2 | avg **$1.23** — cheapest |
+| Sonnet 5 (batch B) | **3/3** | 2, **1**, 2 | avg **$1.25** |
+| Sonnet 5 (batch A) | **3/3** | 3, 2, 3 | avg **$2.89** — most expensive, by ~2.3× |
+
+(Corrected 2026-10-11: costs re-derived from final usage records, and batch A —
+originally published as "Sonnet 4.6" — ran on **Claude Sonnet 5** per its transcripts,
+so Stage 2 covers three models, with Sonnet 5 sampled twice.)
 
 **The version-recency wall is fully iteration-proof: 12/12 trials converge to 100%
 compliance**, across every model tried, in 1–3 gate runs — the same cell that scored
-0/5 one-shot for three of the four models. The one-shot 0% headline above is a
+0/5 one-shot for Opus 4.8 and Sonnet 5. The one-shot 0% headline above is a
 *feedback* problem, not a knowledge wall: an agent that never runs its own app ships a
 silently-broken Boot-4 service every time; an agent that runs-and-checks recovers every
-time, cheaply. Cost tracks **iteration count**, not code volume — the single most
-expensive trial (Sonnet 4.6, 3 iterations, $4.71) costs ~4× any other trial, because
-every extra gate iteration means re-reading a larger accumulated conversation, and that
-cache-read volume dominates real cost far more than the code the model actually writes.
+time, cheaply. Cost tracks **iteration count** — the single most expensive trial
+(Sonnet 5 batch A, 3 iterations, $5.22) costs ~2.4× any trial outside its batch,
+because every extra gate iteration means re-reading a larger accumulated conversation,
+and that cache-read volume dominates real cost. The two Sonnet 5 batches — same model,
+same task — differ 2.3× in average cost purely through iteration count.
 
 ## How it works
 
@@ -233,13 +248,14 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Multi-model extension: Sonnet 5 + Fable 5 added, Tiko bumped to 0.3.0 (1/20 pass
       on Boot 4.0.6 across four models — the one trial that found the new starter;
       per-model token costs measured)
-- [x] Stage 2 — loop-until-complies harness on the Boot 4.0.6 cell, N=3 across all four
-      models (Sonnet 4.6, Opus 4.8, Fable 5, Sonnet 5): **12/12 converged to 100%
-      compliance** in 1–3 gate iterations — the one-shot 0% is a feedback problem, not a
-      knowledge wall. Real (transcript-reconstructed) cost: Opus 4.8 cheapest (avg
-      $0.99), Sonnet 4.6 most expensive by ~2.5× (avg $2.52, driven by a 3-iteration
-      outlier trial). See `results/RESULTS.md` → "Stage 2 — loop until complies" and
-      the token-accounting erratum in `results/pricing.md`.
+- [x] Stage 2 — loop-until-complies harness on the Boot 4.0.6 cell, four batches of N=3
+      on three models (Opus 4.8, Fable 5, and Sonnet 5 twice — one batch was first
+      published as Sonnet 4.6): **12/12 converged to 100% compliance** in 1–3 gate
+      iterations — the one-shot 0% is a feedback problem, not a knowledge wall. Real
+      (transcript-reconstructed, corrected 2026-10-11) cost: Opus 4.8 cheapest (avg
+      $1.23), Sonnet 5 batch A most expensive by ~2.3× (avg $2.89, driven by
+      3-iteration trials). See `results/RESULTS.md` → "Stage 2 — loop until complies"
+      and the token-accounting errata in `results/pricing.md`.
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
