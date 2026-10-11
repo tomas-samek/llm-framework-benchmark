@@ -631,6 +631,15 @@ trial-04 (tiko-mcp) and spring-05 handled it → 100%. So it reflects a real
 implementation difference (cross-topic refresh handling), not a harness artifact,
 once settles are generous.
 
+> **Note (2026-10-11) — an alternative explanation for buyB failures.** In the v1
+> fixtures, AC5's poison message sits on `price-updates` *before* AC6, and AC5's own
+> price (p1 = 7999) was already stored by AC1/AC4. So an app whose price consumer
+> **stalls on the poison message** (e.g. Tiko's default `poison-record-policy: SEEK`,
+> which redelivers a failing record forever) still passes AC5 and fails exactly one
+> expectation later: AC6/buyB with the stale 7999. That matches all ten 86% Tiko runs.
+> The trial code/logs are no longer on hand to tell the two causes apart. The v2 fixtures
+> (`fixtures/stage-1/README.md`) separate them: AC5 uses a fresh price and runs last.
+
 ## Correction vs the pilot
 The pilot reported spring 0% / tiko 29% / tiko-mcp 86% and a large MCP lift. The
 tiko 29% and the lift were **timing artifacts** of the 3s settle + non-`-v` broker.

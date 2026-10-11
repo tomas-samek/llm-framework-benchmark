@@ -16,17 +16,23 @@ Keep it identical across agents — that is what makes the comparison fair.
   `.mcp.json` launches the topology server via jbang).
 - Build the conformance oracle once:
   `mvn -f conformance/oracle/pom.xml -q package` → `conformance/oracle/target/conformance-oracle.jar`.
+- Tiko trials: if this machine also builds Tiko from source, `~/.m2` may hold
+  locally-installed (unreleased) artifacts under the release version number. Build
+  trials with an isolated `-Dmaven.repo.local=…` so they resolve from Maven Central.
 
 ## 1. Create a fresh trial workspace
 
 ```
-# framework ∈ { spring, tiko }   (and the variants spring3, tiko-mcp)
-cp -a scaffolds/<framework>/notify/.  runs/stage-1/<framework>/trial-NN/
-cp docs/specs/stage-1-spec.md         runs/stage-1/<framework>/trial-NN/TASK-SPEC.md
+# <scaffold> ∈ { spring, spring3, tiko, tiko3, tiko5, tiko6 }
+# <cell>     = the result-cell name, e.g. spring-fix, spring3-fix, tiko-050, tiko-mcp
+cp -a scaffolds/<scaffold>/notify/.  runs/stage-1/<cell>/trial-NN/
+cp docs/specs/stage-1-spec.md        runs/stage-1/<cell>/trial-NN/TASK-SPEC.md
 ```
 
 Golden scaffolds are generated once via each framework's canonical command — see
-`scaffolds/<framework>/GENERATE.md`.
+`scaffolds/<scaffold>/GENERATE.md`. The scaffold → cell mapping is in
+`docs/benchmark-protocol.md` §2. The `tiko-mcp` arm uses the `tiko` scaffold plus the
+MCP instruction below.
 
 ## 2. The contestant prompt (give this verbatim — no extra hints)
 
@@ -67,15 +73,31 @@ done
 # start the contestant app (per the agent's reported run command), wait ~35-40s
 # then run the oracle:
 java -jar conformance/oracle/target/conformance-oracle.jar \
-     localhost:9092 fixtures/stage-1/scenarios.json results/stage-1-<framework>-NN.json
+     localhost:9092 fixtures/stage-1/scenarios.json results/stage-1-<cell>-NN.json
 
 # record + tear down
-echo "$(date -u +%FT%TZ),<framework>,stage-1,NN,<compliance>,,,," >> results/metrics.csv
+# columns: timestamp,model,framework,stage,trial,compliance(%),wall_clock_seconds,output_tokens,agent_turns,tool_calls,cost_usd
+echo "$(date -u +%FT%TZ),<model>,<cell>,stage-1,NN,<compliance-percent>,<seconds>,,,," >> results/metrics.csv
 docker compose -f conformance/docker-compose.yml down -v
 ```
 
-`compliance` = oracle scenarios passed / 7. Exit code is 0 only at 100%.
-(Windows: `conformance/stage-1/run-conformance.ps1` automates broker+app+oracle.)
+`compliance` = oracle expectations passed / 7 (6 scenarios; AC6 checks two
+purchases), recorded in `metrics.csv` as a percent. Exit code is 0 only at 100%.
+
+Automation (all three do the steps above: fresh broker with `down -v`, pre-created
+topics, 40 s warm-up, oracle, process-tree kill, `metrics.csv` row):
+- `conformance/stage-1/run-conformance.sh` / `.ps1` — one trial, any app start command.
+- `conformance/stage-1/grade-batch.ps1` — many trials in sequence (jar or `mvn exec:java`);
+  this is the script used for the published results. It has machine-specific JDK/Maven
+  paths at the top — adjust them.
+
+Set `BENCH_MODEL` to the contestant model ID so the `model` column is filled.
+
+**Fixture versions:** all scripts default to v1 (`scenarios.json`). Grade new trials a
+second time with v2 — `-Fixtures v2` (PowerShell) or `BENCH_FIXTURES=v2` (bash) — which
+writes `results/stage-1-<cell>-NN.v2.json` and `results/metrics-v2.csv`. Grading is
+non-destructive (a fresh broker and a fresh app start each time), so the same built trial
+can be graded on both. See `fixtures/stage-1/README.md`.
 
 ## 4. Repeat
 

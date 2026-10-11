@@ -52,10 +52,10 @@ public final class KafkaIo implements AutoCloseable {
 
     /**
      * Drain {@code topic} from the beginning, returning key -> latest value as a
-     * parsed JsonNode (later offsets overwrite earlier ones for the same key).
-     * Polls until {@code quietMillis} pass with no new records.
+     * parsed JsonNode (later offsets overwrite earlier ones for the same key) and
+     * key -> record count. Polls until {@code quietMillis} pass with no new records.
      */
-    public Map<String, JsonNode> drain(String topic, long quietMillis) {
+    public Drained drain(String topic, long quietMillis) {
         Properties p = new Properties();
         p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         p.put(ConsumerConfig.GROUP_ID_CONFIG, "oracle-" + UUID.randomUUID());
@@ -67,6 +67,7 @@ public final class KafkaIo implements AutoCloseable {
         p.put(ConsumerConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, "15000");
 
         Map<String, JsonNode> latest = new LinkedHashMap<>();
+        Map<String, Integer> counts = new LinkedHashMap<>();
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(p)) {
             consumer.subscribe(List.of(topic));
             long deadline = System.currentTimeMillis() + 60_000;
@@ -78,11 +79,12 @@ public final class KafkaIo implements AutoCloseable {
                     lastSawRecord = System.currentTimeMillis();
                     for (ConsumerRecord<String, String> r : records) {
                         latest.put(r.key(), parse(r.value()));
+                        counts.merge(r.key(), 1, Integer::sum);
                     }
                 }
             }
         }
-        return latest;
+        return new Drained(latest, counts);
     }
 
     private static JsonNode parse(String value) {

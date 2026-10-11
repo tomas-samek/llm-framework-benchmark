@@ -1,0 +1,97 @@
+{
+  "_format": {
+    "version": 2,
+    "description": "Stage-1 acceptance vectors, v2. Same execution model as v1 (scenarios.json): ONE freshly started system instance (empty store), every scenario's 'steps' run in array order with 'settleMs' pauses, then the 'notifications' topic is drained from the beginning into key -> latest value and each 'expect' entry is deep-compared (numeric-tolerant; nulls significant; 'occurredAt' echoed unchanged). Same contestant spec, same behaviour graded, same 7 expectations - v2 only fixes v1's discriminating power. Changes vs v1: (1) AC4 uses a fresh product p4, so its 'latest upsert wins' check is no longer masked by AC1 having already stored the final name (in v1 a first-write-wins store passed AC4). (2) AC5 uses a fresh product/price p5 with a price the store has never seen, so passing it requires the price-updates consumer to have survived the poison message (in v1 the price was already stored by AC1/AC4, so a stalled consumer passed AC5 and failed AC6/buyB instead). (3) AC5 runs LAST: a poison message that stalls price-updates can then only affect AC5, not AC6. (4) exactlyOncePerKey: a purchase that yields more than one notification fails (spec section 5: exactly one). Product/price ids intentionally differ from the spec's AC table; the asserted behaviour is identical. Disjoint purchase keys; do not reorder.",
+    "changes_from_v1": ["AC4: p1 -> p4", "AC5: p1 -> p5, price 1299", "AC5 moved after AC6", "exactlyOncePerKey: true"],
+    "topics_in": ["product-updates", "user-updates", "price-updates", "purchases"],
+    "topic_out": "notifications"
+  },
+  "exactlyOncePerKey": true,
+  "scenarios": [
+    {
+      "id": "AC1",
+      "title": "happy path - all reference data present",
+      "steps": [
+        { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
+        { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
+        { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buy1", "value": { "purchaseId": "buy1", "userId": "u1", "productId": "p1", "quantity": 2, "occurredAt": "2026-06-07T10:15:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buy1", "value": { "purchaseId": "buy1", "userId": "u1", "userName": "Alice", "productId": "p1", "productName": "Mechanical Keyboard", "priceCents": 7999, "currency": "USD", "quantity": 2, "totalCents": 15998, "occurredAt": "2026-06-07T10:15:00Z" } }
+      ]
+    },
+    {
+      "id": "AC2",
+      "title": "all reference data missing - nulls",
+      "steps": [
+        { "publish": { "topic": "purchases", "key": "buy2", "value": { "purchaseId": "buy2", "userId": "u-x", "productId": "p-x", "quantity": 3, "occurredAt": "2026-06-07T10:16:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buy2", "value": { "purchaseId": "buy2", "userId": "u-x", "userName": null, "productId": "p-x", "productName": null, "priceCents": null, "currency": null, "quantity": 3, "totalCents": null, "occurredAt": "2026-06-07T10:16:00Z" } }
+      ]
+    },
+    {
+      "id": "AC3",
+      "title": "only price known - total computed, names null",
+      "steps": [
+        { "publish": { "topic": "price-updates", "key": "p2", "value": { "productId": "p2", "priceCents": 500, "currency": "EUR" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buy3", "value": { "purchaseId": "buy3", "userId": "u-x", "productId": "p2", "quantity": 4, "occurredAt": "2026-06-07T10:17:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buy3", "value": { "purchaseId": "buy3", "userId": "u-x", "userName": null, "productId": "p2", "productName": null, "priceCents": 500, "currency": "EUR", "quantity": 4, "totalCents": 2000, "occurredAt": "2026-06-07T10:17:00Z" } }
+      ]
+    },
+    {
+      "id": "AC4",
+      "title": "idempotent upsert - latest value wins (fresh product, so a first-write-wins store fails)",
+      "steps": [
+        { "publish": { "topic": "product-updates", "key": "p4", "value": { "productId": "p4", "name": "Keyboard", "category": "electronics" } } },
+        { "publish": { "topic": "product-updates", "key": "p4", "value": { "productId": "p4", "name": "Mechanical Keyboard", "category": "electronics" } } },
+        { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
+        { "publish": { "topic": "price-updates", "key": "p4", "value": { "productId": "p4", "priceCents": 4999, "currency": "USD" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buy4", "value": { "purchaseId": "buy4", "userId": "u1", "productId": "p4", "quantity": 1, "occurredAt": "2026-06-07T10:18:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buy4", "value": { "purchaseId": "buy4", "userId": "u1", "userName": "Alice", "productId": "p4", "productName": "Mechanical Keyboard", "priceCents": 4999, "currency": "USD", "quantity": 1, "totalCents": 4999, "occurredAt": "2026-06-07T10:18:00Z" } }
+      ]
+    },
+    {
+      "id": "AC6",
+      "title": "reference refresh - latest price used per purchase",
+      "steps": [
+        { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
+        { "publish": { "topic": "product-updates", "key": "p1", "value": { "productId": "p1", "name": "Mechanical Keyboard", "category": "electronics" } } },
+        { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 7999, "currency": "USD" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buyA", "value": { "purchaseId": "buyA", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:20:00Z" } } },
+        { "settleMs": 4000 },
+        { "publish": { "topic": "price-updates", "key": "p1", "value": { "productId": "p1", "priceCents": 8999, "currency": "USD" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buyB", "value": { "purchaseId": "buyB", "userId": "u1", "productId": "p1", "quantity": 1, "occurredAt": "2026-06-07T10:21:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buyA", "value": { "purchaseId": "buyA", "userId": "u1", "userName": "Alice", "productId": "p1", "productName": "Mechanical Keyboard", "priceCents": 7999, "currency": "USD", "quantity": 1, "totalCents": 7999, "occurredAt": "2026-06-07T10:20:00Z" } },
+        { "topic": "notifications", "key": "buyB", "value": { "purchaseId": "buyB", "userId": "u1", "userName": "Alice", "productId": "p1", "productName": "Mechanical Keyboard", "priceCents": 8999, "currency": "USD", "quantity": 1, "totalCents": 8999, "occurredAt": "2026-06-07T10:21:00Z" } }
+      ]
+    },
+    {
+      "id": "AC5",
+      "title": "poison message skipped - consumer survives (fresh price, runs last)",
+      "steps": [
+        { "publishRaw": { "topic": "price-updates", "key": "bad", "value": "this is not valid json" } },
+        { "publish": { "topic": "product-updates", "key": "p5", "value": { "productId": "p5", "name": "Wrist Rest", "category": "accessories" } } },
+        { "publish": { "topic": "user-updates", "key": "u1", "value": { "userId": "u1", "name": "Alice", "email": "alice@example.com" } } },
+        { "publish": { "topic": "price-updates", "key": "p5", "value": { "productId": "p5", "priceCents": 1299, "currency": "USD" } } },
+        { "settleMs": 6000 },
+        { "publish": { "topic": "purchases", "key": "buy5", "value": { "purchaseId": "buy5", "userId": "u1", "productId": "p5", "quantity": 1, "occurredAt": "2026-06-07T10:19:00Z" } } }
+      ],
+      "expect": [
+        { "topic": "notifications", "key": "buy5", "value": { "purchaseId": "buy5", "userId": "u1", "userName": "Alice", "productId": "p5", "productName": "Wrist Rest", "priceCents": 1299, "currency": "USD", "quantity": 1, "totalCents": 1299, "occurredAt": "2026-06-07T10:19:00Z" } }
+      ]
+    }
+  ]
+}

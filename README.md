@@ -55,7 +55,8 @@ retrieved it **1 time in 5**; no other model ever found it. The blind spot weake
 model recency; it does not disappear.
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
-now on the latest release:
+on the most recent benchmarked release (Tiko 0.6.0 is out; its scaffold is ready but
+not yet benchmarked):
 
 | Framework | Opus 4.8 | Sonnet 5 | Fable 5 |
 |---|---|---|---|
@@ -128,7 +129,7 @@ other.
 3. **An out-of-training-corpus framework with in-repo docs holds up well — and keeps
    improving.** Tiko 0.3.0 reached 100% median for both Opus 4.8 and Sonnet 5, with the
    sole failures being already-filed documentation gaps (kebab-case vs. camelCase config
-   keys), not framework defects. On the current release, **Tiko 0.5.0, all three models
+   keys), not framework defects. On the most recent benchmarked release, **Tiko 0.5.0, all three models
    go 15/15 (100%)** — that doc gap doesn't recur anywhere in the newer run. The 0.5.0
    doc restructuring is also mostly a cost win, except it taught Opus a new habit
    (self-authoring its own integration test in 5/5 trials, traced to a specific new

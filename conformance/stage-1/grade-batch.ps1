@@ -4,7 +4,11 @@
 #
 # Usage:
 #   $env:BENCH_MODEL = 'claude-fable-5'
-#   .\grade-batch.ps1 -Trials @('spring:f5-01:jar','tiko:f5-01:mvn',...)
+#   .\grade-batch.ps1 -Trials @('spring:f5-01:jar','tiko:f5-01:mvn',...) [-Fixtures v2]
+#
+#   -Fixtures v1 (default) grades with fixtures/stage-1/scenarios.json -> results/metrics.csv;
+#   -Fixtures v2 grades with scenarios.v2.json -> results/*.v2.json + results/metrics-v2.csv
+#   (see fixtures/stage-1/README.md).
 #
 # Trial entry format:  <framework>:<trialId>:<runType>
 #   framework = subdir under runs/stage-1/   (spring | spring3 | tiko | tiko-mcp)
@@ -13,15 +17,17 @@
 #
 # Prereqs: docker daemon up; oracle jar built (mvn -f conformance/oracle/pom.xml package).
 param(
-    [Parameter(Mandatory = $true)][string[]]$Trials
+    [Parameter(Mandatory = $true)][string[]]$Trials,
+    [ValidateSet('v1', 'v2')][string]$Fixtures = 'v1'
 )
 
 $ErrorActionPreference = 'Continue'
 $Root      = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Compose   = Join-Path $Root 'conformance\docker-compose.yml'
 $Oracle    = Join-Path $Root 'conformance\oracle\target\conformance-oracle.jar'
-$Scenarios = Join-Path $Root 'fixtures\stage-1\scenarios.json'
-$Metrics   = Join-Path $Root 'results\metrics.csv'
+$Suffix    = if ($Fixtures -eq 'v2') { '.v2' } else { '' }
+$Scenarios = Join-Path $Root "fixtures\stage-1\scenarios$Suffix.json"
+$Metrics   = Join-Path $Root "results\metrics$(if ($Fixtures -eq 'v2') { '-v2' } else { '' }).csv"
 $Java      = 'W:\tools\java\jdk21\bin\java.exe'
 $Mvn       = 'W:\tools\apache-maven\bin\mvn.cmd'
 $env:JAVA_HOME = 'W:\tools\java\jdk21'
@@ -40,7 +46,7 @@ foreach ($t in $Trials) {
     if ($parts.Count -ne 3) { Write-Host "SKIP malformed entry: $t"; continue }
     $fw = $parts[0]; $trialId = $parts[1]; $type = $parts[2]
     $trialDir = Join-Path $Root "runs\stage-1\$fw\trial-$trialId"
-    $outJson  = Join-Path $Root "results\stage-1-$fw-$trialId.json"
+    $outJson  = Join-Path $Root "results\stage-1-$fw-$trialId$Suffix.json"
     Write-Host "===== grading $fw/trial-$trialId ($type) ====="
 
     if (-not (Test-Path $trialDir)) { Write-Host "SKIP: $trialDir missing"; continue }

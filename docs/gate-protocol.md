@@ -70,7 +70,7 @@ it later). To measure Gate-2 attempts and tokens, the contestant must reach a ru
 |---|---|---|---|
 | spring (Boot 4.0.6) | … | … | … |
 | spring3 (Boot 3.3.5) | … | … | … |
-| tiko (0.3.0) | … | … | … |
+| tiko (0.5.0 / 0.6.0) | … | … | … |
 
 ## Status
 

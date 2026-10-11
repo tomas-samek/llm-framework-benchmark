@@ -23,10 +23,13 @@ what changes is the **mode**.
 |---|---|---|---|
 | **1 — One-shot build** | `stage-1-spec.md` (Kafka → H2 → notifications) | build once, graded by the hidden oracle; the agent never runs the app | cold-build correctness — the version-recency / doc-discovery results to date |
 | **2 — Loop until complies** | `stage-1-spec.md` (same task) | the agent runs the app against a live broker and **iterates until it believes it complies**, capped by a budget | whether iteration *converges* — and at what iteration/token cost — or whether a missing-knowledge failure (e.g. never discovering `spring-boot-starter-kafka`) is one that looping cannot escape |
-| **3 — Evolve (brownfield)** | `stage-3-spec.md` (add Lucene full-text search + an HTTP query endpoint to the Stage-1 app) | given a working Stage-1 codebase in a fresh context, extend it without breaking the existing acceptance scenarios | cold-codebase mutation — regression safety + new-feature correctness |
+| **3 — Evolve (brownfield)** | `stage-3-spec.md` *(planned — not written yet)* (add Lucene full-text search + an HTTP query endpoint to the Stage-1 app) | given a working Stage-1 codebase in a fresh context, extend it without breaking the existing acceptance scenarios | cold-codebase mutation — regression safety + new-feature correctness |
 
-**Open decision for Stage 2 — the loop's feedback signal** (this determines what
-Stage 2 measures; see §"Stage 2 loop" below):
+**Stage 2 — the loop's feedback signal** (this determines what Stage 2 measures;
+see §"Stage 2 loop" below). **Decided: (b)**, implemented by
+`conformance/stage-2/ci-gate.ps1` and used for the runs in `results/stage-2-loop.csv`.
+Known limitation: the gate runs the same scenarios that grade the final result, so a
+held-out scenario set (to detect overfitting to the gate) is still a TODO.
 - **(a) sample-data only** — the agent gets a live broker + a sample publisher
   (*not* the graded fixtures) and self-verifies. Purest; but "complies against my
   own samples" ≠ "passes the hidden oracle".
@@ -54,12 +57,30 @@ is part of what we measure.
 | | Tiko | Spring Boot |
 |---|---|---|
 | Fresh start | `mvn archetype:generate` from the Tiko archetype | `spring init` (Spring Initializr) |
-| Pre-equipped with | DI core wired; `tiko-config`/`tiko-kafka`/`tiko-test` present but **commented out**; bundled `CLAUDE.md`, `.ai-skills/`, `.mcp.json` (MCP topology server) | **core only** |
+| Pre-equipped with | DI core wired; `tiko-config`/`tiko-kafka`/`tiko-test` present but **commented out**; bundled `CLAUDE.md`, `.ai-skills/`, `.mcp.json` (MCP topology server) | core + `spring-boot-starter-json` (Jackson + `ObjectMapper` bean, mirroring the JSON serializer `tiko-kafka` bundles; added 2026-06-13 — see `scaffolds/spring/GENERATE.md`) |
 | Agent adds | enables opt-in modules; adds Lucene; hand-builds DB + HTTP | adds `spring-kafka`, `spring-data-jpa`, `spring-boot-starter-web`, H2, Lucene |
 
-The exact generation commands are recorded in `scaffolds/spring/GENERATE.md` and
-`scaffolds/tiko/GENERATE.md`, and the generated trees are committed **untouched**
-as golden copies. Every trial is a fresh copy of the golden scaffold.
+The exact generation commands are recorded in each scaffold's `GENERATE.md`, and the
+generated trees are committed **untouched** as golden copies. Every trial is a fresh
+copy of the golden scaffold.
+
+| Scaffold | Framework version | Result cells |
+|---|---|---|
+| `scaffolds/spring/` | Spring Boot 4.0.6 | `spring-fix` (`spring`, `spring-free`: earlier core-only revision\*) |
+| `scaffolds/spring3/` | Spring Boot 3.3.5 (version-recency control) | `spring3-fix` (`spring3`: earlier core-only revision\*) |
+| `scaffolds/tiko/` | Tiko 0.2.2 (historical) | `tiko`, `tiko-mcp` |
+| `scaffolds/tiko3/` | Tiko 0.3.0 (historical) | `tiko-030` |
+| `scaffolds/tiko5/` | Tiko 0.5.0 | `tiko-050` |
+| `scaffolds/tiko6/` | Tiko 0.6.0 (current; not yet benchmarked) | — |
+
+\* Before 2026-06-13 the Spring scaffolds were core-only (no `spring-boot-starter-json`);
+see the "Spring scaffold confound" section of `results/RESULTS.md`. That revision is in
+git history.
+
+Tiko scaffolds must be generated from the archetype **as published on Maven
+Central**. On a machine that also builds Tiko from source, `~/.m2` may hold a
+locally-installed archetype/BOM under the release version number; generate (and run
+trials) with an isolated `-Dmaven.repo.local=…` so nothing unreleased leaks in.
 
 ## 3. Pinned shared substrate (identical for both)
 
@@ -71,7 +92,7 @@ them isolates the only variable to Spring-vs-Tiko.
 | JDK | 21 (Temurin) |
 | Maven | 3.9.x |
 | Kafka broker (docker) | `apache/kafka:3.8.0` (KRaft, single node, `localhost:9092`) |
-| Embedded DB | H2 `2.2.224` |
+| Embedded DB | H2 `2.2.224` *(target only — not enforced: the scaffolds don't ship H2 and the contestant prompt doesn't pin it, so the agent picks the version, and Spring Boot's dependency management supplies its own)* |
 | Search engine | Apache Lucene `9.11.1` |
 
 Framework versions are whatever each framework's canonical fresh-start path
@@ -79,9 +100,10 @@ yields at generation time (this is part of the as-shipped condition):
 - **Spring Boot `4.0.6`** — the current Spring Initializr default. (Initializr
   serves only supported lines; 3.3.x is no longer offered, so it cannot be
   pinned via `spring init`.)
-- **Tiko `0.5.0`** via `tiko-archetype:0.5.0` (latest on Maven Central as of
-  2026-08-15; superseded `0.2.2` and `0.3.0`, both still benchmarked as
-  historical/comparison cells — see `results/RESULTS.md`).
+- **Tiko `0.6.0`** via `tiko-archetype:0.6.0` (latest on Maven Central as of
+  2026-10-11; scaffold in `scaffolds/tiko6/`, **not yet benchmarked**). The most
+  recent benchmarked release is **`0.5.0`** (2026-08-15); `0.2.2` and `0.3.0` remain
+  as historical/comparison cells — see `results/RESULTS.md`. (`0.4.0` was skipped.)
 
 The Lucene/H2/Kafka substrate versions above are pinned independently of the
 framework versions and are identical for both contestants.
@@ -118,10 +140,13 @@ Fresh agent session per trial. No carry-over context.
 
 ## 6. As-shipped guidance
 
-Tiko runs keep the archetype's bundled agent guidance and MCP topology server.
-**Before each Tiko trial, verify the MCP server (jbang) is reachable**; record
-the check in the trial log. If it is unavailable, the trial is void and re-run —
-Tiko must be measured at its real as-shipped capability, not below it. Spring
+Tiko runs keep the archetype's bundled agent guidance (`CLAUDE.md`, `.ai-skills/`)
+and its `.mcp.json` file. Use of the MCP topology server is a **separate arm**:
+`tiko-mcp` trials are told to use it (see `RUNNING.md`) and **must verify the MCP
+server (jbang) is reachable** before starting, recording the check in the trial log;
+if it is unavailable, the trial is void and re-run. Plain `tiko` cells (including
+`tiko-030` and `tiko-050`) get no MCP instruction. Stage-1 showed no compliance lift
+from the MCP arm, so newer Tiko versions were run without it. Spring
 runs rely on the model's built-in Spring knowledge (no special docs); that
 asymmetry is intentional and is the honest real-world comparison.
 
@@ -152,8 +177,16 @@ compliance gates the comparison.
 Graded by `conformance/stage-<s>/`, a framework-independent harness that brings
 up Kafka, publishes the fixture inputs (`fixtures/stage-<s>/scenarios.json`),
 and asserts the observable outputs. **The agent's own tests do not count toward
-compliance** — only the external oracle does. Score = fraction of acceptance
-scenarios passed.
+compliance** — only the external oracle does. Score = fraction of the 7 acceptance
+expectations passed (6 scenarios; AC6 checks two purchases).
+
+**Fixture versions.** Stage 1 has two fixture sets for the *same* contestant spec:
+`scenarios.json` (**v1** — every result through 2026-08-15) and `scenarios.v2.json`
+(**v2**, 2026-10-11), which fixes v1 scenarios that earlier scenarios' leftover state
+could satisfy (AC4, AC5) and enforces "exactly one notification per purchase". Scores are
+only comparable within a fixture version; v2 results are recorded separately
+(`results/*.v2.json`, `results/metrics-v2.csv`). New cells should be graded on **both**
+until v2 has enough history to stand alone. Details: `fixtures/stage-1/README.md`.
 
 ### 8.2 Efficiency
 Output tokens, agent turns, tool calls, wall-clock — captured from the session

@@ -7,7 +7,6 @@ import io.bench.oracle.model.Scenarios;
 import io.bench.oracle.model.Step;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Runs all scenarios in order against a single running contestant app:
@@ -39,14 +38,18 @@ public final class OracleRunner {
                 applyStep(step);
             }
         }
-        Map<String, JsonNode> emitted = kafka.drain(OUTPUT_TOPIC, DRAIN_QUIET_MILLIS);
+        Drained emitted = kafka.drain(OUTPUT_TOPIC, DRAIN_QUIET_MILLIS);
 
         List<Result> results = new ArrayList<>();
         for (Scenario s : scenarios.scenarios()) {
             for (Expectation e : s.expect()) {
-                JsonNode actual = emitted.get(e.key());
+                JsonNode actual = emitted.latest().get(e.key());
+                int count = emitted.counts().getOrDefault(e.key(), 0);
                 if (actual == null) {
                     results.add(new Result(s.id(), e.key(), false, "no notification with this key"));
+                } else if (scenarios.requiresExactlyOnce() && count > 1) {
+                    results.add(new Result(s.id(), e.key(), false,
+                            count + " notifications with this key, expected exactly one"));
                 } else if (JsonMatch.matches(e.value(), actual)) {
                     results.add(new Result(s.id(), e.key(), true, "ok"));
                 } else {

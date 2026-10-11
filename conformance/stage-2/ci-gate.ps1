@@ -11,17 +11,19 @@
 # fail, not the answer key. Self-check only --- writes no metrics, grades nothing.
 #
 # Usage:
-#   .\ci-gate.ps1 -TrialDir <abs path> -RunType <jar|mvn> [-SkipBuild]
+#   .\ci-gate.ps1 -TrialDir <abs path> -RunType <jar|mvn> [-SkipBuild] [-Fixtures v2]
+# Use the same -Fixtures version the trial will finally be graded with.
 param(
     [Parameter(Mandatory=$true)][string]$TrialDir,
     [Parameter(Mandatory=$true)][ValidateSet('jar','mvn')][string]$RunType,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [ValidateSet('v1','v2')][string]$Fixtures = 'v1'
 )
 $ErrorActionPreference = 'Continue'
 $Root      = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Compose   = Join-Path $Root 'conformance\docker-compose.yml'
 $Oracle    = Join-Path $Root 'conformance\oracle\target\conformance-oracle.jar'
-$Scenarios = Join-Path $Root 'fixtures\stage-1\scenarios.json'
+$Scenarios = Join-Path $Root "fixtures\stage-1\scenarios$(if ($Fixtures -eq 'v2') { '.v2' } else { '' }).json"
 $Java      = 'W:\tools\java\jdk21\bin\java.exe'
 $Mvn       = 'W:\tools\apache-maven\bin\mvn.cmd'
 $env:JAVA_HOME = 'W:\tools\java\jdk21'
@@ -40,7 +42,10 @@ if (-not $SkipBuild) {
     }
 }
 
-# 2. Fresh broker + topics.
+# 2. Fresh broker + topics. Unlike grade-batch.ps1 (opt-in BENCH_KILL_STRAY_JAVA), this
+#    kills ALL java/mvn unconditionally: a Stage-2 contestant routinely leaves its own
+#    smoke-run app alive, which would join this broker and corrupt the gate's reading.
+#    Run Stage-2 trials on a box with no other JVMs you care about.
 Get-Process java,mvn -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 docker compose -f $Compose down -v *> $null
 docker compose -f $Compose up -d *> $null
