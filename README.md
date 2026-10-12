@@ -60,15 +60,16 @@ on the current release with the current model generation:
 
 | Framework | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
-| Tiko **0.6.0** — v1 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** (10/10) |
-| Tiko **0.6.0** — v2 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** median (9/10) |
+| Tiko **0.6.0** — v1 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** (15/15) |
+| Tiko **0.6.0** — v2 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** median (13/15) |
 
-**30/30 on the original fixtures, 29/30 on the stricter v2 set** (see
-[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md); each model was run twice,
-N=10). The one v2 miss is a Haiku trial whose bad-message handler retried for ~15 s
-instead of skipping at once — a stall v1 couldn't see. Tiko 0.6.0's docs now steer agents
-toward blocking on bad messages (`SEEK`), which contradicts the spec's log-and-skip; all
-30 trials noticed and overrode it. Even the smallest current model builds this correctly
+**35/35 on the original fixtures, 33/35 on the stricter v2 set** (see
+[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md); N=10 for Opus and Sonnet,
+N=15 for Haiku). Both v2 misses are Haiku trials with the same bug: the bad-message
+handler looked for an exception Tiko never attaches, so it retried for ~15 s instead of
+skipping at once — a stall v1 couldn't see. Tiko 0.6.0's docs now steer agents toward
+blocking on bad messages (`SEEK`), which contradicts the spec's log-and-skip; all 35
+trials noticed and overrode it. Even the smallest current model builds this correctly
 on a framework it was never trained on, and cheaper models lose almost nothing: median
 input-side cost per build is $0.95 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
 Haiku 5.5.
@@ -98,10 +99,10 @@ reconstructed from transcripts (`conformance/token-accounting.py`; read the erra
 | Opus 5 | — | — | $3.54 · 47 · 100% | — |
 | Opus 5.5 | — | — | — | $1.22¹ · 23 · 100% |
 | Sonnet 5.5 | — | — | — | $0.36¹ · 12 · 100% |
-| Haiku 5.5 | — | — | — | $0.05¹ · 17 · 100% |
+| Haiku 5.5 | — | — | — | $0.06¹ · 17 · 100% |
 
 ¹ Lower bound: the input side is exact, but only ~15% of 0.6.0's API calls carry a
-final output-token record. N=10 per 0.6.0 model, N=5 elsewhere.
+final output-token record. N=10 per 0.6.0 model (Haiku N=15), N=5 elsewhere.
 
 **Fable 5 is the only model measured on three Tiko releases.** With the model held
 fixed, cost per build fell **55%** ($5.73 → $2.58) and API calls fell **61%**

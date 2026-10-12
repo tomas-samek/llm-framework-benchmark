@@ -434,7 +434,8 @@ Same protocol and dispatch prompt as 0.5.0 (version and path changed only), agai
 `scaffolds/tiko6/GENERATE.md`), on the current model generation: **Claude Opus 5.5,
 Sonnet 5.5, Haiku 5.5** (model IDs verified from each trial's transcript), N=5 each.
 Second batches for all three models (o55-06–10, s55-06–10, h55-06–10) were run on
-2026-10-12 with the identical prompt and scaffold, bringing each model to N=10. Builds ran in parallel with no broker; grading was sequential with a fresh broker per
+2026-10-12 with the identical prompt and scaffold, bringing each model to N=10, plus a
+third Haiku batch (h55-11–15) the same day, bringing Haiku to N=15. Builds ran in parallel with no broker; grading was sequential with a fresh broker per
 trial, each trial restored from its post-build snapshot before every grading (several
 apps keep H2 in a file under `./data/`, which must not carry over between gradings).
 Every trial was graded on **v1** (`scenarios.json`, comparable with all earlier cells)
@@ -448,9 +449,12 @@ and **v2** (`scenarios.v2.json`, see `fixtures/stage-1/README.md`).
 | Sonnet 5.5, batch 2 (06–10, 2026-10-12) | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
 | Haiku 5.5 | 100 100 100 100 100 | **100%** (5/5) | **86** 100 100 100 100 | **100%** (4/5) |
 | Haiku 5.5, batch 2 (06–10, 2026-10-12) | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
+| Haiku 5.5, batch 3 (11–15, 2026-10-12) | 100 100 100 100 100 | **100%** (5/5) | 100 **86** 100 100 100 | **100%** (4/5) |
 
-**v1: 30/30. v2: 29/30 — and the one difference is exactly what v2 was built to see.**
-(Before the second batches: 15/15 and 14/15.)
+**v1: 35/35. v2: 33/35 — and both differences are exactly what v2 was built to see.**
+(Before the later batches: 15/15 and 14/15.) Both v2 failures are Haiku trials with the
+same bug, h55-01 and h55-12 (described below for h55-01; h55-12's decider is the same
+check, and its v2 log shows the bad record given up on after 5 attempts).
 Haiku h55-01 registered a `KafkaIngestErrorDecider` meant to SKIP undecodable records
 by looking for an `IOException` in the cause chain; Tiko 0.6.0 raises an
 `IllegalStateException` there, so the check missed and the decider SEEKed 5 times with
@@ -461,11 +465,11 @@ exact masking v2 removes.
 
 **Poison handling — every trial overrode the default.** 0.6.0's docs (newly prominent)
 explain that `poison-record-policy` defaults to `SEEK` — a bad record blocks its
-partition — and advise against `SKIP`; the spec requires log-and-skip. All 30 trials
-reconciled the two without blocking: 23 registered a `KafkaIngestErrorDecider` (all 10
-Opus), 6 (5 Sonnet, 1 Haiku) set `poison-record-policy: SKIP` and said so explicitly, and 1 (Haiku
-h55-04) bypassed the policy with a raw-bytes serializer plus parse-and-skip in its handlers. None
-hit the SEEK-forever stall the v1-era 86% Tiko trials are suspected of (see the erratum at
+partition — and advise against `SKIP`; the spec requires log-and-skip. All 35 trials
+reconciled the two: 27 registered a `KafkaIngestErrorDecider` (all 10 Opus), 6 (5
+Sonnet, 1 Haiku) set `poison-record-policy: SKIP` and said so explicitly, and 2 (Haiku
+h55-04, h55-14) bypassed the policy with a raw-bytes serializer plus parse-and-skip in
+their handlers. None hit the SEEK-forever stall the v1-era 86% Tiko trials are suspected of (see the erratum at
 the top). The deciders differ in how they recognise a record that can't be decoded —
 Tiko gives them no type to check, so they match message text, wrap the serializer, or
 don't distinguish at all (filed as
@@ -482,6 +486,14 @@ the exception message. Their v2 app logs show AC5's bad record skipped on the fi
 attempt. Both checks rely on Tiko internals (a stack frame, message text), which is the
 gap #549 asks to close; h55-07's would SEEK forever on any failure it didn't recognise.
 
+Haiku 5.5's third batch went 4 deciders and 1 bypass (h55-14). h55-11 returns
+`DEAD_LETTER` on the first failure, which commits past the record at once; h55-13 SEEKs
+twice and then SKIPs everything. Two tried skip-undecodable-retry-the-rest and both
+missed the signal: h55-12 looked for an `IOException` (h55-01's bug, now 2 of 15 Haiku
+trials) and failed AC5 on v2 after 5 attempts; h55-15 looked for "jackson" in a class
+name, which isn't in the chain either, but gave up after 3 attempts (~1.5 s, two
+retries in its log) and passed.
+
 Opus 5.5's second batch, like its first, wrote a decider in every trial, each recognising
 undecodable records some way: three match Tiko's message text or Jackson class names
 (o55-07, o55-08, o55-10), one wraps the serializer in its own and checks for its own
@@ -491,8 +503,8 @@ attempt; o55-10 also passed AC5, but its decider's log lines don't appear in the
 output, so which branch fired isn't recorded.
 
 **Self-testing:** Opus 5.5 wrote and ran its own integration test against
-`FakeKafkaBroker` in 10/10 trials (as Opus 5 did on 0.5.0); Sonnet 5.5 and Haiku 5.5 in
-0/10 each.
+`FakeKafkaBroker` in 10/10 trials (as Opus 5 did on 0.5.0); Sonnet 5.5 in 0/10 and
+Haiku 5.5 in 0/15.
 
 **Cost.** This run's transcripts (Claude Code 2.1.296) carry a final usage record for
 only ~15% of API calls, so output tokens are a loose lower bound (blank in
@@ -503,16 +515,16 @@ input + cache write + cache read — is exact. Per build, median:
 |---|---|---|---|
 | Opus 5.5 (N=10) | $0.95 | ≥ 13.7k | 42/227 |
 | Sonnet 5.5 (N=10) | $0.33 | ≥ 3.1k | 7/117 |
-| Haiku 5.5 (N=10) | $0.05 | ≥ 8.8k | 29/170 |
+| Haiku 5.5 (N=15) | $0.05 | ≥ 10.9k | 51/248 |
 
-Each model's two batches cost about the same on the exact input side (median: Opus $0.98
-and $0.93, Sonnet $0.31 and $0.34, Haiku $0.04 and $0.05). Sonnet's output bound dropped from ≥ 5.4k
+Each model's batches cost about the same on the exact input side (median: Opus $0.98
+and $0.93, Sonnet $0.31 and $0.34, Haiku $0.04, $0.05 and $0.05). Sonnet's output bound dropped from ≥ 5.4k
 (batch 1 alone) only because two more trials have no final usage record; it says nothing
 about how much Sonnet actually wrote.
 
 Opus 5.5's cache reads are priced at 0.05× input; Haiku 5.5 bills calls with prompts
-over 100K tokens at its higher rate (7 of 10 Haiku trials crossed it: 3 in batch 1, 4 in
-batch 2) — both handled in `conformance/token-accounting.py`.
+over 100K tokens at its higher rate (11 of 15 Haiku trials crossed it: 3, 4 and 4 by
+batch) — both handled in `conformance/token-accounting.py`.
 
 **Run notes.** (1) Haiku h55-03's first v1 grading was invalid (0%): a contestant shell
 stuck on `python -` reading an empty here-doc kept a handle on the trial directory, the
@@ -536,14 +548,17 @@ reference app, trial snapshots and grading logs were moved out of the scratchpad
 batch o55-07, o55-08 and o55-09 ran `javap` from `/tmp` (o55-08 and o55-09 also wrote
 their classpath there), and o55-10 did the same in the scratchpad (classpath, two config files extracted from the
 tiko-kafka jar, a one-file probe of `JsonKafkaSerializer`); none listed or read anything
-else, so all are kept.
+else, so all are kept. (6) In the third Haiku batch, h55-11 and h55-12 wrote their
+classpath into the scratchpad (by then holding no grading material) and h55-12 and
+h55-14 ran `javap` from `/tmp`; none read anything else. No contestant processes were
+left running.
 
 ### Tiko cost across releases (2026-10-12)
 
 No new trials: this regroups the existing Stage-1 Tiko cells by release, using
 `results/metrics.csv` (cost, compliance) and `results/token-audit.csv` (API calls per
-build; for 0.6.0 the N=10 totals in the table above). Average per build; compliance is
-the v1 median.
+build; for 0.6.0 the totals in the table above, N=10, Haiku N=15). Average per build;
+compliance is the v1 median.
 
 | Model | 0.2.2 (`tiko`) | 0.3.0 (`tiko-030`) | 0.5.0 (`tiko-050`) | 0.6.0 (`tiko-060`) |
 |---|---|---|---|---|
@@ -554,7 +569,7 @@ the v1 median.
 | Opus 5 | — | — | $3.54 · 47.0 · 100% | — |
 | Opus 5.5 | — | — | — | $1.22¹ · 22.7 · 100% |
 | Sonnet 5.5 | — | — | — | $0.36¹ · 11.7 · 100% |
-| Haiku 5.5 | — | — | — | $0.05¹ · 17.0 · 100% |
+| Haiku 5.5 | — | — | — | $0.06¹ · 16.5 · 100% |
 
 ¹ Lower bound (output tokens only partly recorded; input side exact).
 
