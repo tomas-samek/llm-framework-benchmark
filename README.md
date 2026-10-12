@@ -60,16 +60,17 @@ on the current release with the current model generation:
 
 | Framework | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
-| Tiko **0.6.0** — v1 fixtures | **100%** (5/5) | **100%** (5/5) | **100%** (5/5) |
-| Tiko **0.6.0** — v2 fixtures | **100%** (5/5) | **100%** (5/5) | **100%** median (4/5) |
+| Tiko **0.6.0** — v1 fixtures | **100%** (5/5) | **100%** (10/10) | **100%** (5/5) |
+| Tiko **0.6.0** — v2 fixtures | **100%** (5/5) | **100%** (10/10) | **100%** median (4/5) |
 
-**15/15 on the original fixtures, 14/15 on the stricter v2 set** (see
-[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md)). The one v2 miss is a Haiku
-trial whose bad-message handler retried for ~15 s instead of skipping at once — a stall
-v1 couldn't see. Tiko 0.6.0's docs now steer agents toward blocking on bad messages
-(`SEEK`), which contradicts the spec's log-and-skip; all 15 trials noticed and overrode
-it. Even the smallest current model builds this correctly on a framework it was never
-trained on.
+**20/20 on the original fixtures, 19/20 on the stricter v2 set** (see
+[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md); Sonnet was run twice, N=10).
+The one v2 miss is a Haiku trial whose bad-message handler retried for ~15 s instead of
+skipping at once — a stall v1 couldn't see. Tiko 0.6.0's docs now steer agents toward
+blocking on bad messages (`SEEK`), which contradicts the spec's log-and-skip; all 20
+trials noticed and overrode it. Even the smallest current model builds this correctly on
+a framework it was never trained on — and Sonnet 5.5 does it at about a third of Opus
+5.5's cost (median $0.33 vs $0.98 input-side per build, same compliance).
 
 The previous release, Tiko 0.5.0, was also a clean sweep (15/15) on the previous model
 generation — Opus 5, Sonnet 5, Fable 5. (Its Opus column was first published as

@@ -60,7 +60,8 @@ AC6 rather than refresh failures — the trial logs are gone, so v1 can't tell. 
 
 ## First real run (Tiko 0.6.0, 2026-10-11)
 
-All 15 `tiko-060` trials were graded on both versions: 15/15 on v1, 14/15 on v2. The
+All 15 `tiko-060` trials were graded on both versions: 15/15 on v1, 14/15 on v2 (a
+second Sonnet batch on 2026-10-12 added 5/5 on both, for 20/20 and 19/20). The
 difference is one Haiku 5.5 trial whose bad-message handler was meant to skip
 undecodable records but checked for the wrong exception type, so it retried with
 backoff for ~15 s before skipping. v1 scored it 7/7 — the stall was masked exactly as
