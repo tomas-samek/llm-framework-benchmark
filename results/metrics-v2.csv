@@ -19,3 +19,8 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-10-12T16:15:43Z,claude-sonnet-5-5,tiko-060,stage-1,08,100,87,,,,0.352
 2026-10-12T16:17:30Z,claude-sonnet-5-5,tiko-060,stage-1,09,100,87,891,,,0.344
 2026-10-12T16:19:23Z,claude-sonnet-5-5,tiko-060,stage-1,10,100,88,,,,0.359
+2026-10-12T17:08:29Z,claude-haiku-5-5,tiko-060,stage-1,06,100,89,8803,,,0.024
+2026-10-12T17:10:25Z,claude-haiku-5-5,tiko-060,stage-1,07,100,89,7570,,,0.056
+2026-10-12T17:12:19Z,claude-haiku-5-5,tiko-060,stage-1,08,100,88,5701,,,0.054
+2026-10-12T17:14:13Z,claude-haiku-5-5,tiko-060,stage-1,09,100,88,2118,,,0.064
+2026-10-12T17:16:06Z,claude-haiku-5-5,tiko-060,stage-1,10,100,88,12248,,,0.053

@@ -432,8 +432,8 @@ Same protocol and dispatch prompt as 0.5.0 (version and path changed only), agai
 `scaffolds/tiko6/notify/` (`tiko-archetype:0.6.0`, generated from Maven Central — see
 `scaffolds/tiko6/GENERATE.md`), on the current model generation: **Claude Opus 5.5,
 Sonnet 5.5, Haiku 5.5** (model IDs verified from each trial's transcript), N=5 each.
-A second Sonnet 5.5 batch (s55-06–10) was run on 2026-10-12 with the identical prompt and
-scaffold, bringing Sonnet to N=10. Builds ran in parallel with no broker; grading was sequential with a fresh broker per
+Second Sonnet 5.5 and Haiku 5.5 batches (s55-06–10, h55-06–10) were run on 2026-10-12
+with the identical prompt and scaffold, bringing both to N=10. Builds ran in parallel with no broker; grading was sequential with a fresh broker per
 trial, each trial restored from its post-build snapshot before every grading (several
 apps keep H2 in a file under `./data/`, which must not carry over between gradings).
 Every trial was graded on **v1** (`scenarios.json`, comparable with all earlier cells)
@@ -445,9 +445,10 @@ and **v2** (`scenarios.v2.json`, see `fixtures/stage-1/README.md`).
 | Sonnet 5.5 | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
 | Sonnet 5.5, batch 2 (06–10, 2026-10-12) | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
 | Haiku 5.5 | 100 100 100 100 100 | **100%** (5/5) | **86** 100 100 100 100 | **100%** (4/5) |
+| Haiku 5.5, batch 2 (06–10, 2026-10-12) | 100 100 100 100 100 | **100%** (5/5) | 100 100 100 100 100 | **100%** (5/5) |
 
-**v1: 20/20. v2: 19/20 — and the one difference is exactly what v2 was built to see.**
-(Before the second Sonnet batch: 15/15 and 14/15.)
+**v1: 25/25. v2: 24/25 — and the one difference is exactly what v2 was built to see.**
+(Before the second Sonnet and Haiku batches: 15/15 and 14/15.)
 Haiku h55-01 registered a `KafkaIngestErrorDecider` meant to SKIP undecodable records
 by looking for an `IOException` in the cause chain; Tiko 0.6.0 raises an
 `IllegalStateException` there, so the check missed and the decider SEEKed 5 times with
@@ -458,10 +459,10 @@ exact masking v2 removes.
 
 **Poison handling — every trial overrode the default.** 0.6.0's docs (newly prominent)
 explain that `poison-record-policy` defaults to `SEEK` — a bad record blocks its
-partition — and advise against `SKIP`; the spec requires log-and-skip. All 20 trials
-reconciled the two without blocking: 14 registered a `KafkaIngestErrorDecider`, 5 (all
-Sonnet) set `poison-record-policy: SKIP` and said so explicitly, and 1 (Haiku h55-04)
-bypassed the policy with a raw-bytes serializer plus parse-and-skip in its handlers. None
+partition — and advise against `SKIP`; the spec requires log-and-skip. All 25 trials
+reconciled the two without blocking: 18 registered a `KafkaIngestErrorDecider`, 6 (5
+Sonnet, 1 Haiku) set `poison-record-policy: SKIP` and said so explicitly, and 1 (Haiku
+h55-04) bypassed the policy with a raw-bytes serializer plus parse-and-skip in its handlers. None
 hit the SEEK-forever stall the v1-era 86% Tiko trials are suspected of (see the erratum at
 the top). The deciders differ in how they recognise a record that can't be decoded —
 Tiko gives them no type to check, so they match message text, wrap the serializer, or
@@ -471,11 +472,17 @@ deciders (s55-08, s55-10) SEEK twice and then SKIP every failure, a ~1.5 s stall
 default backoff; v2's settle pauses absorb a stall that short, so both scored 7/7.
 
 Sonnet 5.5 split evenly between the two routes: 5 of 10 set `SKIP`, 5 of 10 wrote a
-decider (batch 1: 2 and 3; batch 2: 3 and 2).
+decider (batch 1: 2 and 3; batch 2: 3 and 2). Haiku 5.5's second batch went 4 deciders and
+1 `SKIP`. Two of those deciders tried the same thing h55-01 got wrong — skip undecodable
+records, retry the rest — and this time recognised the failure: h55-07 by finding a
+`JsonKafkaSerializer.deserialize` frame in the stack trace, h55-08 by finding "json" in
+the exception message. Their v2 app logs show AC5's bad record skipped on the first
+attempt. Both checks rely on Tiko internals (a stack frame, message text), which is the
+gap #549 asks to close; h55-07's would SEEK forever on any failure it didn't recognise.
 
 **Self-testing:** Opus 5.5 wrote and ran its own integration test against
-`FakeKafkaBroker` in 5/5 trials (as Opus 5 did on 0.5.0); Sonnet 5.5 in 0/10 and
-Haiku 5.5 in 0/5.
+`FakeKafkaBroker` in 5/5 trials (as Opus 5 did on 0.5.0); Sonnet 5.5 and Haiku 5.5 in
+0/10 each.
 
 **Cost.** This run's transcripts (Claude Code 2.1.296) carry a final usage record for
 only ~15% of API calls, so output tokens are a loose lower bound (blank in
@@ -486,15 +493,16 @@ input + cache write + cache read — is exact. Per build, median:
 |---|---|---|---|
 | Opus 5.5 | $0.98 | ≥ 14.5k | 19/114 |
 | Sonnet 5.5 (N=10) | $0.33 | ≥ 3.1k | 7/117 |
-| Haiku 5.5 | $0.04 | ≥ 10.6k | 12/81 |
+| Haiku 5.5 (N=10) | $0.05 | ≥ 8.8k | 29/170 |
 
-Sonnet's two batches cost the same on the exact input side (median $0.31 and $0.34).
-Its output bound dropped from ≥ 5.4k (batch 1 alone) only because two more trials have
-no final usage record; it says nothing about how much Sonnet actually wrote.
+Each model's two batches cost about the same on the exact input side (median: Sonnet
+$0.31 and $0.34, Haiku $0.04 and $0.05). Sonnet's output bound dropped from ≥ 5.4k
+(batch 1 alone) only because two more trials have no final usage record; it says nothing
+about how much Sonnet actually wrote.
 
 Opus 5.5's cache reads are priced at 0.05× input; Haiku 5.5 bills calls with prompts
-over 100K tokens at its higher rate (three Haiku trials crossed it) — both
-handled in `conformance/token-accounting.py`.
+over 100K tokens at its higher rate (7 of 10 Haiku trials crossed it: 3 in batch 1, 4 in
+batch 2) — both handled in `conformance/token-accounting.py`.
 
 **Run notes.** (1) Haiku h55-03's first v1 grading was invalid (0%): a contestant shell
 stuck on `python -` reading an empty here-doc kept a handle on the trial directory, the
@@ -504,7 +512,16 @@ on to overwrite the trial's `pom.xml`), and h55-03 was re-graded on v1 from its 
 100%; its v2 grading, after a clean restore, was also 100%. (2) Haiku h55-01 checked H2
 `MERGE` syntax in a scratch directory under the system temp folder (deleted afterwards) —
 outside its trial directory, against the "work only here" rule; it read only Maven-cache
-jars, no other project, fixture or result, so the trial is kept.
+jars, no other project, fixture or result, so the trial is kept. (3) Haiku h55-09 left a
+shell stuck on `cat >` with a queued script that would have rewritten its `pom.xml` after
+the build; the shell tree was killed before grading and the `pom.xml` hash checked
+unchanged. (4) Five more trials wrote scratch files outside their trial directory: o55-01,
+o55-05 and h55-07 wrote their Maven classpath (`cp.txt`) into the orchestrating session's
+scratchpad, o55-05 also unpacked jar metadata there, and h55-09/h55-10 used the parent
+temp folder. All 25 transcripts were searched: no trial read any other trial, fixture,
+result, grading script or the reference app, so all are kept. The scratchpad path reaches
+contestants through the subagent environment, though, and it held grading material;
+future runs should keep that material out of it.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
