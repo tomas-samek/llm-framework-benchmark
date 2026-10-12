@@ -5,7 +5,9 @@
 > ["Multi-model extension" below](#-multi-model-extension--sonnet-5--fable-5-added-tiko-030-added-2026-07-0102),
 > and the current-version Tiko result is in
 > ["Tiko 0.6.0"](#-tiko-060--three-new-models-first-run-graded-on-both-fixture-sets-2026-10-11)
-> (0.5.0 and 0.3.0 are kept just above it as prior-version comparison points). Read the
+> (0.5.0 and 0.3.0 are kept just above it as prior-version comparison points). Its
+> Spring counterpart on the same current models is
+> ["Spring Boot 4.1.1 on the 5.5 models"](#-spring-boot-411-on-the-55-models-2026-10-12). Read the
 > [2026-10-11 erratum](#erratum-2026-10-11-output-tokens-undercounted-two-model-mislabels)
 > before any token or cost figure.
 > Everything above the Multi-model extension section is superseded first-pass /
@@ -592,6 +594,65 @@ $0.91 · 28.2; Opus 4.8 $1.11 · 24.8 and $0.89 · 18.0.
   included, Fable 5's cheapest Tiko cell ($2.58) is below its priciest Spring cell
   (`spring`, $2.88, the original confounded scaffold). It still holds for Sonnet 5 and
   for the corpus up to 0.3.0 that it was written against.
+
+### 🆕 Spring Boot 4.1.1 on the 5.5 models (2026-10-12)
+
+The Spring counterpart of the Tiko 0.6.0 cell: current release against current release,
+on the same models, so the two compare directly. Scaffold `scaffolds/spring41/`: the
+4.0.6 golden scaffold with only the parent repinned to **4.1.1**, the Spring Initializr
+default on 2026-10-12 (Initializr no longer offers the `json` dependency the original
+command used; see `scaffolds/spring41/GENERATE.md`). Same contestant prompt as the
+earlier Spring cells, trial path changed only. **Claude Opus 5.5, Sonnet 5.5, Haiku 5.5**
+(model IDs verified from each transcript), N=10 each, built 10 at a time, graded
+sequentially with a fresh broker and a restore from the post-build snapshot before
+every grading, on **v1** and **v2** fixtures.
+
+| Model | v1 (01–10) | v1 median | v2 (01–10) | v2 median |
+|---|---|---|---|---|
+| Opus 5.5 | 100 ×10 | **100%** (10/10) | 100 ×10 | **100%** (10/10) |
+| Sonnet 5.5 | 100 ×10 | **100%** (10/10) | 100 ×10 | **100%** (10/10) |
+| Haiku 5.5 | 100 ×10 | **100%** (10/10) | 100 ×10 | **100%** (10/10) |
+
+**30/30 on v1, 30/30 on v2.** Every trial kept the 4.1.1 parent, and **every trial added
+`spring-boot-starter-kafka`**, the Boot 4 module that the earlier generations missed
+19 times in 20 on 4.0.6 (see "Multi-model extension"). All 30 used the auto-configured
+Jackson 3 mapper (`tools.jackson`). All 30 v2 app logs show Spring Boot v4.1.1 starting
+(about 2 s in the ones timed) and AC5's malformed record being logged and skipped.
+
+- **Bad messages:** all 30 consume String payloads and parse JSON inside the listener,
+  so a malformed record is caught, logged and skipped there; none relied on a container
+  error handler to get past it. That sidesteps the poison-record stall the Tiko cells
+  had to engineer around.
+- **Persistence:** 28 used `JdbcTemplate`/`JdbcClient` with H2 `MERGE ... KEY`; 2 used
+  Spring Data JPA (o55-08, h55-10).
+- **Ordering:** most trials use one listener per topic; o55-03, o55-07 and h55-09 read
+  all four topics with a single consumer (o55-03 and o55-07 sort each batch by
+  timestamp). Both designs passed AC6.
+- **Self-testing:** Opus wrote and ran tests in 5/10 trials (10/10 on Tiko 0.6.0, where
+  the docs show `FakeKafkaBroker`); Sonnet and Haiku in 0/10. Three Sonnet trials
+  deleted the scaffold's broker-dependent context test.
+- **Isolation:** all 30 transcripts were checked: no trial touched any path outside its
+  own trial directory, not even a temp folder. No contestant process was left running.
+
+**Attribution caveat.** The 5.5 models were run on 4.1.1, not 4.0.6. The Kafka starter
+split is the same in both, and all 30 builds used the fix, so the newer models' Boot 4
+knowledge is the likely difference; a 4.0.6 control on the 5.5 models would separate
+the model effect from the patch-level version change.
+
+**Cost, against Tiko 0.6.0 on the same models.** Input-side cost is exact; output tokens
+are a lower bound (final usage on 83/284 calls here).
+
+| Model | Spring 4.1.1: median input-side · avg calls | Tiko 0.6.0: median input-side · avg calls | Tiko / Spring |
+|---|---|---|---|
+| Opus 5.5 | $0.44 · 12.0 | $0.95 · 22.7 | 2.1× cost, 1.9× calls |
+| Sonnet 5.5 | $0.18 · 6.7 | $0.33 · 11.7 | 1.8× cost, 1.7× calls |
+| Haiku 5.5 | $0.013 · 9.7 | $0.047 · 16.5 | 3.6× cost, 1.7× calls |
+
+The pattern from the earlier cross-cell analysis holds on the current generation: Tiko
+builds take more calls, and cost follows the call count. The gap is smaller than the
+3–4× measured on Tiko 0.2.2/0.3.0. Haiku's larger cost ratio comes from its
+long-prompt tier: 11 of 15 Tiko trials crossed 100K prompt tokens, against none of the
+Spring trials.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 

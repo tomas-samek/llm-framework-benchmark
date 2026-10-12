@@ -30,7 +30,8 @@ tests), with hooks for **efficiency** and **code quality**.
 > good in-repo affordances?"* — which is also why it makes a fair foil for a
 > brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: yes — 86%
 > median on Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations,
-> vs Boot-4's 0%.)
+> vs Boot-4's 0% on the same older models. The 5.5 generation has since caught up on
+> Boot 4: 30/30 on Boot 4.1.1.)
 
 ## Headline results — Stage 1
 
@@ -52,8 +53,23 @@ reorganization), even when they correctly adopted Jackson 3 and Spring Kafka's n
 serializer classes. The single pass is a Fable 5 trial that added
 **`spring-boot-starter-kafka`** — the actual Boot-4 fix — explicitly reasoning that
 Boot 4 moved Kafka autoconfig into its own module. Fable *carries* that knowledge but
-retrieved it **1 time in 5**; no other model ever found it. The blind spot weakens with
-model recency; it does not disappear.
+retrieved it **1 time in 5**; no other model of that generation ever found it.
+
+**The next model generation closed it (2026-10-12).** On the current Boot release, 4.1.1
+(the Spring Initializr default; same major, same Kafka module split), the 5.5 models
+went **30/30** on both fixture sets, and **every one of the 30 trials added
+`spring-boot-starter-kafka`** and used Jackson 3:
+
+| Spring Boot version | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
+|---|---|---|---|
+| **4.1.1** — current release (~2 months old) | **100%** (10/10) | **100%** (10/10) | **100%** (10/10) |
+
+So the Boot-4 knowledge that Fable 5 retrieved 1 time in 5 is now retrieved every time,
+by the smallest model too. One caveat on attribution: the 5.5 models were run on 4.1.1,
+not on 4.0.6, so the model generation and the patch-level Boot version changed together.
+The Kafka starter split that sank the earlier models is the same in both versions, and
+all 30 builds used the fix, so the models are the likely difference; a 4.0.6 control on
+the 5.5 models would settle it.
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
@@ -73,6 +89,19 @@ trials noticed and overrode it. Even the smallest current model builds this corr
 on a framework it was never trained on, and cheaper models lose almost nothing: median
 input-side cost per build is $0.95 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
 Haiku 5.5.
+
+**Current release vs current release, current models:** Spring Boot 4.1.1 and Tiko 0.6.0
+are now both solved by every model, and Spring has the edge on both remaining axes.
+Spring went 30/30 on v2 against Tiko's 33/35, and a Spring build costs about half as
+much, because it takes 1.7–1.9× fewer API calls:
+
+| Median input-side cost per build | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
+|---|---|---|---|
+| Spring Boot 4.1.1 | $0.44 · 12 calls | $0.18 · 7 calls | $0.013 · 10 calls |
+| Tiko 0.6.0 | $0.95 · 23 calls | $0.33 · 12 calls | $0.047 · 17 calls |
+
+(Average API calls per build. Input-side cost is exact; output tokens are only partly
+recorded in these transcripts, see `results/RESULTS.md`.)
 
 The previous release, Tiko 0.5.0, was also a clean sweep (15/15) on the previous model
 generation — Opus 5, Sonnet 5, Fable 5. (Its Opus column was first published as
@@ -127,7 +156,8 @@ The Tiko 0.3.0 vs Spring token and cost tables, by model, are in `results/RESULT
 
 ### What it found
 
-1. **Version recency dominates — and neither size nor tokens fixes it.** Across four
+1. **Version recency dominated until the training data caught up — neither size nor
+   tokens fixed it, a newer model generation did.** Across four
    model generations and 20 independent trials, Spring Boot 4.0.6 produced **one**
    working app, while the same models scored ~100% on Boot 3.3.5. The failure is
    *silent and idiomatic*: every Boot-4 build compiled, but the models reflexively wrote
@@ -137,7 +167,11 @@ The Tiko 0.3.0 vs Spring token and cost tables, by model, are in `results/RESULT
    freedom, the models downgrade — Sonnet 5/5) **and** at *execution* (forced onto the
    new major, they use the old major's muscle memory). The newest model (Fable 5) is the
    only one that ever produced the fix (`spring-boot-starter-kafka`) — **once in five
-   tries**. The blind spot weakens with model recency; it does not close.
+   tries**. The next generation closed the gap: on Boot 4.1.1 (same Kafka module split),
+   Opus, Sonnet and Haiku 5.5 went **30/30**, every trial using that starter. The
+   failures were measured 7–9 months after Boot 4.0.0 shipped (2025-11-20); the 5.5
+   run, about 11 months after, so the blind spot outlasted at least one model
+   generation and closed by the next.
 
 2. **Token spend and correctness are uncorrelated here.** Sonnet 5 spent 1.3×–1.8× the
    real output tokens of Opus 4.8 on identical tasks for the same compliance (deeper
@@ -265,6 +299,11 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       $1.23), Sonnet 5 batch A most expensive by ~2.3× (avg $2.89, driven by
       3-iteration trials). See `results/RESULTS.md` → "Stage 2 — loop until complies"
       and the token-accounting errata in `results/pricing.md`.
+- [x] Current releases on the current models (2026-10-11/12): Tiko 0.6.0 and Spring
+      Boot 4.1.1 on Opus, Sonnet and Haiku 5.5, graded on v1 and v2 fixtures. Spring
+      30/30 on both; Tiko 35/35 on v1, 33/35 on v2; Spring about half the cost per build.
+- [ ] Spring Boot 4.0.6 control on the 5.5 models, to separate the model effect from the
+      4.0.6 → 4.1.1 change
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a

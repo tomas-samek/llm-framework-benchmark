@@ -68,3 +68,11 @@ undecodable records but checked for the wrong exception type, so it retried with
 backoff for ~15 s before skipping. v1 scored it 7/7 — the stall was masked exactly as
 above — while v2 scored it 6/7, failing AC5 (`priceCents` null for buy5). Details:
 `results/RESULTS.md` → "Tiko 0.6.0".
+
+## Spring Boot 4.1.1 (2026-10-12)
+
+The `spring-411` cell is the first Spring cell graded on both versions: 30/30 on v1 and
+30/30 on v2 (Opus, Sonnet and Haiku 5.5, 10 each). Every trial parses JSON inside its
+listener and skips a malformed record there, so v2's stricter AC5 found no stall, and
+`exactlyOncePerKey` found no duplicates. Details: `results/RESULTS.md` → "Spring Boot
+4.1.1 on the 5.5 models".

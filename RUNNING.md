@@ -23,7 +23,7 @@ Keep it identical across agents — that is what makes the comparison fair.
 ## 1. Create a fresh trial workspace
 
 ```
-# <scaffold> ∈ { spring, spring3, tiko, tiko3, tiko5, tiko6 }
+# <scaffold> ∈ { spring, spring41, spring3, tiko, tiko3, tiko5, tiko6 }
 # <cell>     = the result-cell name, e.g. spring-fix, spring3-fix, tiko-050, tiko-mcp
 cp -a scaffolds/<scaffold>/notify/.  runs/stage-1/<cell>/trial-NN/
 cp docs/specs/stage-1-spec.md        runs/stage-1/<cell>/trial-NN/TASK-SPEC.md
