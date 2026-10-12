@@ -51,8 +51,9 @@ tiko-030 = Tiko 0.3.0; average per build):
   (not −73%), cost −45%. The Opus row compares **Opus 4.8 on 0.3.0 with Opus 5 on 0.5.0**
   (22.5k → 39.8k tokens, $3.11 → $3.54), so its "self-testing habit taught by the new
   docs" explanation is confounded by a model change and can't be attributed to the docs.
-- *Cross-cell (Tiko vs Spring):* the headline holds — for every model, the cheapest
-  Tiko-family cell average still exceeds the priciest Spring-family one — but output is
+- *Cross-cell (Tiko vs Spring):* the headline holds for the corpus up to Tiko 0.3.0 —
+  for every model, the cheapest Tiko-family cell average still exceeds the priciest
+  Spring-family one (0.5.0 later breaks it for Fable 5; see "Tiko cost across releases") — but output is
   ~13% of the $2.51 gap (not ~2%), output grows 1.8× pooled (Opus 4.8 +46%, Sonnet 5
   +100% — not +6% / +9%); cache read ~60% and cache write ~26% remain the bulk.
 - *Stage 2:* three models, not four (Sonnet 5 sampled twice). Opus 4.8 is still cheapest
@@ -537,6 +538,46 @@ their classpath there), and o55-10 did the same in the scratchpad (classpath, tw
 tiko-kafka jar, a one-file probe of `JsonKafkaSerializer`); none listed or read anything
 else, so all are kept.
 
+### Tiko cost across releases (2026-10-12)
+
+No new trials: this regroups the existing Stage-1 Tiko cells by release, using
+`results/metrics.csv` (cost, compliance) and `results/token-audit.csv` (API calls per
+build; for 0.6.0 the N=10 totals in the table above). Average per build; compliance is
+the v1 median.
+
+| Model | 0.2.2 (`tiko`) | 0.3.0 (`tiko-030`) | 0.5.0 (`tiko-050`) | 0.6.0 (`tiko-060`) |
+|---|---|---|---|---|
+| Fable 5 | $5.73 · 36.8 calls · 100% | $4.68 · 29.2 · 100% | $2.58 · 14.4 · 100% | — |
+| Sonnet 5 | — | $4.14 · 76.6 · 100% | $2.34 · 49.6 · 100% | — |
+| Opus 4.8 | $2.90 · 41.4 · 86% | $3.11 · 50.2 · 100% | — | — |
+| Sonnet 4.6 | $2.42 · 93.0 · 86% | — | — | — |
+| Opus 5 | — | — | $3.54 · 47.0 · 100% | — |
+| Opus 5.5 | — | — | — | $1.22¹ · 22.7 · 100% |
+| Sonnet 5.5 | — | — | — | $0.36¹ · 11.7 · 100% |
+| Haiku 5.5 | — | — | — | $0.05¹ · 17.0 · 100% |
+
+¹ Lower bound (output tokens only partly recorded; input side exact).
+
+Spring reference on the same models (`spring-fix` = Boot 4.0.6, `spring3-fix` = Boot
+3.3.5): Fable 5 $1.90 · 13.8 calls and $1.47 · 10.8; Sonnet 5 $1.45 · 46.0 and
+$0.91 · 28.2; Opus 4.8 $1.11 · 24.8 and $0.89 · 18.0.
+
+- **Same model, three releases (Fable 5):** cost −55%, calls −61% from 0.2.2 to 0.5.0.
+  Calls now match Spring Boot 4.0.6 (14.4 vs 13.8). Cost per call is $0.18 against
+  Spring's $0.14, so the remaining 1.4–1.8× dollar gap (3.0–3.9× on 0.2.2) is per-call
+  cost, not call count.
+- **Sonnet 5, 0.3.0 → 0.5.0:** cost −43%, calls −35%; calls are within 8% of Boot
+  4.0.6 (49.6 vs 46.0).
+- **Opus 4.8, 0.2.2 → 0.3.0:** cost +7%, calls +21%; 0.3.0 alone did not cut cost.
+  The Fable 5 and Sonnet 5 drops fall in the 0.3.0 → 0.5.0 window, which includes
+  Tiko 0.4.0's agent-documentation overhaul (a timing match, not a measured cause).
+- **0.6.0 can't be attributed:** it was run only on the 5.5 generation, at new prices,
+  and no model was run on both 0.5.0 and 0.6.0.
+- **The cross-cell headline below no longer holds for every model.** With `tiko-050`
+  included, Fable 5's cheapest Tiko cell ($2.58) is below its priciest Spring cell
+  (`spring`, $2.88, the original confounded scaffold). It still holds for Sonnet 5 and
+  for the corpus up to 0.3.0 that it was written against.
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
@@ -649,7 +690,8 @@ Extending the same ground-truth reconstruction to the **entire** Stage-1 corpus 
 `spring3`/`tiko`/`tiko-mcp` cells that predate the "-fix"/"-030" scaffold corrections,
 not just the 51-trial headline table — surfaces a consistent, model-independent pattern:
 **for every model tested, Tiko's cheapest cell-average build cost exceeds Spring's most
-expensive cell-average build cost.**
+expensive cell-average build cost.** *(Written against the corpus up to Tiko 0.3.0. Tiko
+0.5.0 breaks it for Fable 5 — see "Tiko cost across releases".)*
 
 *(superseded — see the 2026-10-11 erratum at the top: output tokens undercounted; costs and token figures in this table are the pre-correction values)*
 | Model | Priciest Spring-family cell (avg) | Cheapest Tiko-family cell (avg) | Tiko-family always pricier on average |
