@@ -81,40 +81,48 @@ each had one failure (both independently reproducing a documentation gap,
 [tiko-di#404](https://github.com/tomas-samek/tiko-di/issues/404), filed from static
 analysis *before* those runs). See `results/RESULTS.md` → "Tiko 0.6.0" and "Tiko 0.5.0".
 
-**Token cost (corrected 2026-10-11 — see the erratum in `results/pricing.md`).** Usage
-is reconstructed from Claude Code's persisted subagent transcripts
-(`conformance/token-accounting.py`). The earlier version of these tables read each API
-response's *stream-start* usage record, whose `output_tokens` is a placeholder (often
-3–16), instead of its final record — so it **undercounted output 2–18×** and cost
-1.1–1.7×. Real average output tokens per build:
+### Tiko cost per build, release by release
 
-| Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
-|---|---|---|---|
-| Sonnet 4.6 | 10.1k | 7.6k | — |
-| Opus 4.8 | 13.3k | 13.3k | 22.5k |
-| Sonnet 5 | **23.3k** | **17.6k** | **40.9k** |
-| Fable 5 | 16.3k | 12.3k | 27.0k |
+Same spec, same oracle, Stage 1, one row per model. Each cell gives the average cost
+per build, average API calls per build, and median v1 compliance. API calls don't
+depend on price, and call count is what drives cost (see finding 6). Costs are
+reconstructed from transcripts (`conformance/token-accounting.py`; read the erratum in
+`results/pricing.md` before comparing with older published figures).
 
-These are still lower bounds: 62–91% of a cell's API calls have a final usage record
-(the rest only the placeholder; per-trial coverage in `results/token-audit.csv`) — the
-Sonnet 5 cells are the least complete (62–65%). Sonnet 5 uses the most tokens on
-identical tasks for the same compliance (1.3×–1.8× Opus 4.8) — but tokens aren't
-dollars. Real average cost per build (input + cache-write + cache-read + output, each
-priced correctly for its model):
+| Model | Tiko 0.2.2 | Tiko 0.3.0 | Tiko 0.5.0 | Tiko 0.6.0 |
+|---|---|---|---|---|
+| **Fable 5** | $5.73 · 37 calls · 100% | $4.68 · 29 · 100% | **$2.58 · 14 · 100%** | — |
+| **Sonnet 5** | — | $4.14 · 77 · 100% | **$2.34 · 50 · 100%** | — |
+| Opus 4.8 | $2.90 · 41 · 86% | $3.11 · 50 · 100% | — | — |
+| Sonnet 4.6 | $2.42 · 93 · 86% | — | — | — |
+| Opus 5 | — | — | $3.54 · 47 · 100% | — |
+| Opus 5.5 | — | — | — | $1.22¹ · 23 · 100% |
+| Sonnet 5.5 | — | — | — | $0.36¹ · 12 · 100% |
+| Haiku 5.5 | — | — | — | $0.05¹ · 17 · 100% |
 
-| Model | spring (Boot 4.0.6) | spring3 (Boot 3.3.5) | tiko (0.3.0) |
-|---|---|---|---|
-| Sonnet 4.6 | **$0.62** | **$0.42** | — |
-| Opus 4.8 | $1.11 | $0.89 | **$3.11** |
-| Sonnet 5 | $1.45 | $0.91 | $4.14 |
-| Fable 5 | $1.90 | $1.47 | $4.68 |
+¹ Lower bound: the input side is exact, but only ~15% of 0.6.0's API calls carry a
+final output-token record. N=10 per 0.6.0 model, N=5 elsewhere.
 
-**Fable 5 is the most expensive model per build in every cell**, and it writes *more*
-output than Opus 4.8 in two of three (the earlier claim that it wrote less everywhere
-was an artifact of the placeholder records). Sonnet 4.6 is the cheapest model in every
-cell it has data for. Spending more tokens doesn't buy correctness: current knowledge
-determines correctness, and per-model pricing and iteration count determine cost,
-largely independently of each other.
+**Fable 5 is the only model measured on three Tiko releases.** With the model held
+fixed, cost per build fell **55%** ($5.73 → $2.58) and API calls fell **61%**
+(37 → 14) from 0.2.2 to 0.5.0. On the same model, Spring takes 14 calls on Boot
+4.0.6 and 11 on Boot 3.3.5, so Tiko 0.5.0 roughly matches Spring on call count. In
+dollars Tiko is still 1.4–1.8× Spring ($1.90 / $1.47), down from 3.0–3.9× on 0.2.2.
+What remains is cost per call (~1.3× Spring's), not number of calls. **Sonnet 5**
+shows the same direction from 0.3.0 to 0.5.0: cost −43%, calls −35%.
+
+Not every step improved: **Opus 4.8** cost 7% more on 0.3.0 than on 0.2.2, with more
+calls (41 → 50). The drop that Fable 5 and Sonnet 5 show falls between 0.3.0 and
+0.5.0, the window of Tiko 0.4.0's agent-documentation overhaul. That is a timing
+match, not a measured cause. Compliance went from 86% median (Opus 4.8, Sonnet 4.6)
+on 0.2.2 to 100% on every model since.
+
+**What this can't show:** Tiko 0.6.0 was run only on the 5.5 generation, at new
+prices (Opus 5.5 bills cache reads at 0.05× input). Its builds are the cheapest of
+any Tiko cell and its call counts the lowest, but no model was run on both 0.5.0 and
+0.6.0, so that step can't be split between Tiko, the newer models and the pricing.
+The Tiko 0.3.0 vs Spring token and cost tables, by model, are in `results/RESULTS.md`
+→ "Erratum (2026-10-11)".
 
 ### What it found
 
@@ -158,19 +166,17 @@ largely independently of each other.
    [8 doc-friction issues](https://github.com/tomas-samek/tiko-di/issues/399) this
    benchmark surfaced and filed directly against Tiko.
 
-6. **Tiko can win on compliance but not on Stage-1 setup cost — and it's iteration
-   count, not code volume, that costs.** Across the full 109-trial corpus
-   (`results/metrics.csv`, every cell including the pre-"-fix" originals), Tiko's
-   cheapest cell-average build cost exceeds Spring's priciest cell-average build cost,
-   for every model tested. The obvious hypothesis — Tiko costs more because the agent
-   hand-writes more code (no first-party DB/HTTP module) — turns out to be a secondary
-   contributor: output tokens are ~13% of the cost gap (corrected 2026-10-11; first
-   published as ~2% from placeholder usage records). What dominates is **~2× more turns
-   on every model** (most extreme for Sonnet 4.6, a 3.2× increase), which compounds into
-   ~4× more re-read conversation context (~86% of the gap with cache writes) — the agent
-   needs more *rounds* to discover Tiko's undocumented API surface and satisfy its
-   strict compile-time DI validation, not more *lines*. See `results/RESULTS.md` →
-   "Cross-cell cost analysis" for the full component breakdown.
+6. **Tiko's setup-cost gap is a call-count problem, and it has been shrinking.**
+   Through 0.3.0, Tiko cost more than Spring on every model, and only ~13% of that
+   gap was output tokens (Tiko has no first-party DB/HTTP module, so the agent
+   hand-writes more code). What dominated was **~2× more turns (API calls) per build**, which
+   compounds into ~4× more re-read conversation context (~86% of the gap with cache
+   writes). The agent needed more *rounds* to discover Tiko's API surface and satisfy
+   its strict compile-time DI validation, not more *lines*. That is the axis later
+   releases moved: on Fable 5, Tiko 0.5.0 needs about as many calls as Spring Boot 4.0.6
+   (14 vs 14) and costs 1.4× instead of 3.0× (see "Tiko cost per build, release by
+   release" above). Full component breakdown: `results/RESULTS.md` → "Cross-cell cost
+   analysis".
 
 > These are directional results: small N and a few points in time per cell. See
 > `results/RESULTS.md` → "Three-model extension" for the full breakdown, the grading
