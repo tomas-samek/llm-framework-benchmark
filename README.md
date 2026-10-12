@@ -60,17 +60,17 @@ on the current release with the current model generation:
 
 | Framework | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
-| Tiko **0.6.0** — v1 fixtures | **100%** (5/5) | **100%** (10/10) | **100%** (10/10) |
-| Tiko **0.6.0** — v2 fixtures | **100%** (5/5) | **100%** (10/10) | **100%** median (9/10) |
+| Tiko **0.6.0** — v1 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** (10/10) |
+| Tiko **0.6.0** — v2 fixtures | **100%** (10/10) | **100%** (10/10) | **100%** median (9/10) |
 
-**25/25 on the original fixtures, 24/25 on the stricter v2 set** (see
-[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md); Sonnet and Haiku were each run
-twice, N=10). The one v2 miss is a Haiku trial whose bad-message handler retried for ~15 s
+**30/30 on the original fixtures, 29/30 on the stricter v2 set** (see
+[`fixtures/stage-1/README.md`](fixtures/stage-1/README.md); each model was run twice,
+N=10). The one v2 miss is a Haiku trial whose bad-message handler retried for ~15 s
 instead of skipping at once — a stall v1 couldn't see. Tiko 0.6.0's docs now steer agents
 toward blocking on bad messages (`SEEK`), which contradicts the spec's log-and-skip; all
-25 trials noticed and overrode it. Even the smallest current model builds this correctly
+30 trials noticed and overrode it. Even the smallest current model builds this correctly
 on a framework it was never trained on, and cheaper models lose almost nothing: median
-input-side cost per build is $0.98 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
+input-side cost per build is $0.95 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
 Haiku 5.5.
 
 The previous release, Tiko 0.5.0, was also a clean sweep (15/15) on the previous model
