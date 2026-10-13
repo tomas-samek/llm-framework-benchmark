@@ -66,7 +66,7 @@ copy of the golden scaffold.
 
 | Scaffold | Framework version | Result cells |
 |---|---|---|
-| `scaffolds/spring/` | Spring Boot 4.0.6 | `spring-fix` (`spring`, `spring-free`: earlier core-only revision\*); `spring-406` (5.5-model control, graded on v1 and v2 fixtures) |
+| `scaffolds/spring/` | Spring Boot 4.0.6 | `spring-fix` (`spring`, `spring-free`: earlier core-only revision\*); `spring-406` (5.5-model control plus Fable 5 run headless, graded on v1 and v2 fixtures) |
 | `scaffolds/spring41/` | Spring Boot 4.1.1 (current) | `spring-411` (graded on v1 and v2 fixtures) |
 | `scaffolds/spring3/` | Spring Boot 3.3.5 (version-recency control) | `spring3-fix` (`spring3`: earlier core-only revision\*) |
 | `scaffolds/tiko/` | Tiko 0.2.2 (historical) | `tiko`, `tiko-mcp` |
@@ -144,6 +144,16 @@ Stage-1 result it builds on). A trial must not have access to:
 
 Fresh agent session per trial. No carry-over context.
 
+**Harness.** Contestants normally run as Claude Code subagents (Agent tool, model set
+per trial and verified from the transcript). A model the Agent tool can no longer select
+runs as a headless top-level session instead: `claude -p --model <id>` from a directory
+outside this repo, with `--setting-sources ""`, `--strict-mcp-config`, auto-memory off,
+`--permission-mode auto`, and the Agent/Workflow tools disallowed (first used for Fable 5
+in `spring-406`, 2026-10-13; full command in `results/RESULTS.md`). The two harnesses
+are not interchangeable: Fable 5 scored 1/5 on Boot 4.0.6 as a subagent on Claude Code
+2.1.197 and 9/10 headless on 2.1.296. Record the harness and Claude Code version with
+every cell.
+
 ## 6. As-shipped guidance
 
 Tiko runs keep the archetype's bundled agent guidance (`CLAUDE.md`, `.ai-skills/`)
@@ -218,6 +228,9 @@ rely on the rubric to keep scoring consistent. Reviews stored in
   generous and identical across cells.
 - **Single model / single point in time:** results describe this model+versions;
   re-run on model upgrades.
+- **Harness drift:** the agent harness (Claude Code version, subagent vs top-level
+  session) affects results; the same model and prompt went from 1/5 to 9/10 on Boot 4.0.6
+  across a harness change. Cross-time comparisons confound model and harness.
 
 ## 10. Deliverables per cell
 

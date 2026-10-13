@@ -83,4 +83,6 @@ The `spring-406` cell (same models on the 4.0.6 scaffold) scored 29/30 on both v
 The one failure, Sonnet s55-08, never started (Spring Data didn't find its nested
 repository interfaces), so it scored 0/7 on v1 and on v2. The other 29 skip the malformed
 record inside the listener, as in `spring-411`, and v2 found no stall or duplicate.
+Fable 5, added to the cell as a headless run, scored 9/10 on both; its one failure (f5-10)
+is the classic missing `KafkaTemplate` bean, so it also scored 0/7 on both.
 Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

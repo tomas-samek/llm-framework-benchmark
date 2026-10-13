@@ -30,8 +30,9 @@ tests), with hooks for **efficiency** and **code quality**.
 > good in-repo affordances?"* — which is also why it makes a fair foil for a
 > brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: yes — 86%
 > median on Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations,
-> vs Boot-4's 0% on the same older models. The 5.5 generation has since caught up on
-> Boot 4: 30/30 on Boot 4.1.1 and 29/30 on 4.0.6.)
+> vs Boot-4's 0% on the same older models. Boot 4 is no longer a wall: the 5.5 models
+> scored 30/30 on 4.1.1 and 29/30 on 4.0.6, and Fable 5, rerun under the current harness,
+> 9/10 on 4.0.6.)
 
 ## Headline results — Stage 1
 
@@ -53,9 +54,9 @@ reorganization), even when they correctly adopted Jackson 3 and Spring Kafka's n
 serializer classes. The single pass is a Fable 5 trial that added
 **`spring-boot-starter-kafka`** — the actual Boot-4 fix — explicitly reasoning that
 Boot 4 moved Kafka autoconfig into its own module. Fable *carries* that knowledge but
-retrieved it **1 time in 5**; no other model of that generation ever found it.
+retrieved it **1 time in 5** in that run; no other model of that generation ever found it.
 
-**The next model generation closed it (2026-10-12).** On the current Boot release, 4.1.1
+**Today the gap is closed (2026-10-12/13).** On the current Boot release, 4.1.1
 (the Spring Initializr default; same major, same Kafka module split), the 5.5 models
 went **30/30** on both fixture sets, and **every one of the 30 trials added
 `spring-boot-starter-kafka`** and used Jackson 3:
@@ -65,12 +66,18 @@ went **30/30** on both fixture sets, and **every one of the 30 trials added
 | **4.1.1** — current release (~2 months old) | **100%** (10/10) | **100%** (10/10) | **100%** (10/10) |
 | **4.0.6** — the scaffold the older models scored 0–20% on | **100%** (10/10) | **100%** median (9/10) | **100%** (10/10) |
 
-So the Boot-4 knowledge that Fable 5 retrieved 1 time in 5 is now retrieved every time,
-by the smallest model too. The 4.0.6 control (2026-10-13) shows the model generation
-made the difference, not the patch release: on the same 4.0.6 scaffold, all 30 builds
-added `spring-boot-starter-kafka`. The one failure, a Sonnet 5.5 trial, never started
-because Spring Data didn't find its nested repository interfaces, which is unrelated to
-Boot 4. Both fixture sets gave the same scores.
+The 4.0.6 control (2026-10-13) shows the patch release isn't the difference: on the same
+4.0.6 scaffold, all 30 builds added `spring-boot-starter-kafka`. The one failure, a Sonnet
+5.5 trial, never started because Spring Data didn't find its nested repository
+interfaces, which is unrelated to Boot 4. Both fixture sets gave the same scores.
+
+**But it isn't cleanly a model-generation effect.** Fable 5, the model that scored 1/5 on
+this scaffold in July, was rerun with the identical prompt and scaffold and went **9/10**
+(seven added the Kafka starter, two wired Kafka by hand). The model ID is the same; what
+changed is the harness (a headless session instead of a subagent) and the Claude Code
+version (2.1.197 → 2.1.296). So the July results measured the models *under that
+harness*, and part of the 1/20 → 29/30 jump may be the harness. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
@@ -304,8 +311,12 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       Boot 4.1.1 on Opus, Sonnet and Haiku 5.5, graded on v1 and v2 fixtures. Spring
       30/30 on both; Tiko 35/35 on v1, 33/35 on v2; Spring about half the cost per build.
 - [x] Spring Boot 4.0.6 control on the 5.5 models (2026-10-13): 29/30 on v1 and v2, every
-      build added `spring-boot-starter-kafka`, so the model generation made the
-      difference, not the 4.0.6 → 4.1.1 change. Cost and calls match 4.1.1.
+      build added `spring-boot-starter-kafka`, so the 4.0.6 → 4.1.1 change isn't the
+      difference. Cost and calls match 4.1.1.
+- [x] Fable 5 on the 4.0.6 control (2026-10-13, headless CLI): 9/10 against July's 1/5
+      with the same prompt; the harness or Claude Code version, not the model, changed.
+- [ ] Fable 5 as a subagent on the current Claude Code, to separate the harness from the
+      Claude Code version
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a

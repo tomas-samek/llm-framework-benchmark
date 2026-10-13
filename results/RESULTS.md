@@ -637,8 +637,9 @@ Jackson 3 mapper (`tools.jackson`). All 30 v2 app logs show Spring Boot v4.1.1 s
 **Attribution caveat (resolved 2026-10-13).** The 5.5 models were run on 4.1.1, not
 4.0.6, so the model generation and the patch-level version changed together. The 4.0.6
 control below settles it: on the 4.0.6 scaffold the same models scored 29/30, and all 30
-added `spring-boot-starter-kafka`. The model generation made the difference, not the
-patch release.
+added `spring-boot-starter-kafka`, so the patch release isn't the difference. Whether the
+*model generation* is, is a separate question: Fable 5, run again on 4.0.6 under the
+current harness, went 9/10 (see "Fable 5 on the 4.0.6 control" below).
 
 **Cost, against Tiko 0.6.0 on the same models.** Input-side cost is exact; output tokens
 are a lower bound (final usage on 83/284 calls here).
@@ -683,9 +684,9 @@ module split on 4.0.6 as well.
   repositories inside a holder class (`Repos.ProductRepo` etc.). Spring Data doesn't scan
   nested repository interfaces by default on any Boot version, so the context fails at
   startup (`required a bean of type 'eu.bench.notify.Repos$ProductRepo'`) and the oracle
-  sees no notifications: 0/7 on both versions. The contestant built with
-  `-DskipTests` and said in its report "I did not start the app". The scaffold's
-  `contextLoads` test, which it kept, would have caught it.
+  sees no notifications: 0/7 on both versions. The contestant prompt asks for
+  `mvn -DskipTests package` and forbids starting the app, so nothing in the build
+  surfaced it; running the scaffold's `contextLoads` test, which it kept, would have.
 - **Bad messages:** as in `spring-411`, every trial consumes String payloads and parses
   JSON inside the listener, so a malformed record is caught, logged and skipped there.
 - **Persistence:** 24 used `JdbcTemplate`/`JdbcClient` with H2 `MERGE`. 6 used Spring Data
@@ -715,6 +716,59 @@ module split on 4.0.6 as well.
 
 The two patch releases are indistinguishable on cost, calls and compliance, so the
 `spring-411` comparison with Tiko 0.6.0 above holds for 4.0.6 too.
+
+#### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce
+
+Fable 5 scored 1/5 on this scaffold in July (`spring-fix`, "Multi-model extension").
+The Agent tool's `fable` alias now resolves to Fable 5.1, so the original model was run
+as a **headless session**:
+
+```
+claude -p --model claude-fable-5 --setting-sources "" --strict-mcp-config \
+  --settings '{"autoMemoryEnabled":false}' --permission-mode auto \
+  --disallowedTools Agent Workflow PushNotification RemoteTrigger CronCreate ScheduleWakeup
+```
+
+The run used `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` and worked in `W:\bench-contestants\spring-406\trial-f5-NN`,
+outside this repo, so no CLAUDE.md, memory, plugins, hooks, MCP servers or git state
+reached the contestant (checked with a smoke session that reported its own context). The
+prompt is word-for-word the July `spring-fix` prompt (trial path changed only). The trials
+were copied into `runs/stage-1/spring-406/` and graded like the 5.5 trials. N=10, built
+in parallel (01 first, then 02–10), model `claude-fable-5` in every transcript.
+
+| Run | Harness | Claude Code | Result on 4.0.6 |
+|---|---|---|---|
+| July (`spring-fix`) | subagent of a Fable 5 session | 2.1.197 | **1/5** |
+| Now (`spring-406` f5) | headless top-level session | 2.1.296 | **9/10** on v1, **9/10** on v2 |
+
+- **Seven trials added `spring-boot-starter-kafka`**, naming it within their first 6–9
+  tool calls, before any build. **Two (f5-04, f5-05) kept plain `spring-kafka` and
+  wired Kafka by hand** (`@EnableKafka` plus explicit factory and template beans), reasoning
+  that "Boot 4.0.6 ships no Kafka auto-config without its dedicated module". Both passed.
+- **The one failure (f5-10) is the classic July one:** plain `spring-kafka`, no Kafka
+  config, `required a bean of type 'org.springframework.kafka.core.KafkaTemplate'`. Its
+  only Boot 4 fix was the Jackson 3 package move.
+- **No contestant touched `~/.m2`**, which by now holds the Boot 4 Kafka jars from the
+  5.5 runs, or anything else outside its trial directory. The fix came from the model.
+  f5-08's two permission denials were reads of its own tool-output files under
+  `~/.claude/projects`, blocked by auto mode.
+- Both runs had extended thinking (13–14 thinking blocks per trial), so that isn't the
+  difference either.
+
+**What this changes.** Same model ID, same prompt, same scaffold: 1/5 then, 9/10 now
+(one-sided Fisher p = 0.017). What changed is the harness (subagent → top-level session)
+and the Claude Code version (2.1.197 → 2.1.296). The earlier reading, "Fable 5 carries the
+Boot 4 knowledge but retrieves it 1 time in 5", described the model *under that harness*.
+And because every earlier-generation result on 4.0.6 came from older Claude Code
+versions, the jump from 1/20 (July, four models) to 29/30 (5.5 models) is not cleanly a
+model-generation effect either. A Fable 5 **subagent** on the current Claude Code (a
+headless Fable 5 session spawning subagents, which inherit its model) would separate
+the harness from the Claude Code version.
+
+**Cost** (exact, from the CLI's `total_cost_usd`, list prices): median **$2.14** per
+build (range $1.79–2.55), 29 turns, 20.3K output tokens. July's five Fable 5 builds on
+this scaffold averaged $1.90. Opus 5.5's median on the same cell is $0.61 (its output
+side is a lower bound), so Fable 5 costs about 3.5× as much per build.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
