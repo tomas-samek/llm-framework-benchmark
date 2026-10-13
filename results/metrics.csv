@@ -248,3 +248,13 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-10-13T14:25:33Z,claude-fable-5,spring-406,stage-1,28,100,89,24084,,,2.137
 2026-10-13T14:27:26Z,claude-fable-5,spring-406,stage-1,29,100,88,24056,,,2.374
 2026-10-13T14:29:19Z,claude-fable-5,spring-406,stage-1,30,100,88,20069,,,1.854
+2026-10-13T17:03:40Z,gpt-6-astra,spring-406,stage-1,01,100,87,4184,,5,
+2026-10-13T17:05:35Z,gpt-6-astra,spring-406,stage-1,02,100,88,5601,,7,
+2026-10-13T17:07:29Z,gpt-6-astra,spring-406,stage-1,03,100,88,4315,,4,
+2026-10-13T17:09:24Z,gpt-6-astra,spring-406,stage-1,04,100,89,4561,,5,
+2026-10-13T17:11:18Z,gpt-6-astra,spring-406,stage-1,05,100,88,5958,,6,
+2026-10-13T17:13:12Z,gpt-6-astra,spring-406,stage-1,06,100,88,4302,,6,
+2026-10-13T17:15:05Z,gpt-6-astra,spring-406,stage-1,07,100,88,4947,,9,
+2026-10-13T17:16:59Z,gpt-6-astra,spring-406,stage-1,08,100,88,5041,,7,
+2026-10-13T17:18:53Z,gpt-6-astra,spring-406,stage-1,09,100,88,6401,,10,
+2026-10-13T17:20:47Z,gpt-6-astra,spring-406,stage-1,10,100,88,4659,,5,

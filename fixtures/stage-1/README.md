@@ -86,5 +86,5 @@ record inside the listener, as in `spring-411`, and v2 found no stall or duplica
 Fable 5, added to the cell three times, scored 9/10 headless, 8/10 as a subagent and 9/10
 as a subagent on Claude Code 2.1.197, the same on both versions. Its failures (f5-10,
 f5s-01, f5s-05, f5o-05) are the classic missing `KafkaTemplate` bean, so they scored 0/7
-on both.
+on both. gpt-6-astra (Codex CLI, `ast-01..10`) scored 10/10 on both versions.
 Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

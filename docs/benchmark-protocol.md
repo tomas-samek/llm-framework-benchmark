@@ -162,6 +162,14 @@ inside an interactive session with user settings, plugins and CLAUDE.md, with th
 trials inside the repo. Record the harness, the Claude Code version and the session
 context with every cell.
 
+**Non-Claude agents** run through their own CLI with the same prompt and the same
+isolation intent. That means no user config, rules, plugins, apps or subagents, while
+keeping shell, file editing and web search. Each trial gets a fresh scaffold outside this
+repo, its own session, and its own Maven repository. The first was gpt-6-astra via Codex
+CLI 0.162.1 (`spring-406`, 2026-10-13; flags in `results/RESULTS.md`). On Windows,
+Codex needs its elevated sandbox, and the Codex desktop app must be closed while trials
+run.
+
 ## 6. As-shipped guidance
 
 Tiko runs keep the archetype's bundled agent guidance (`CLAUDE.md`, `.ai-skills/`)

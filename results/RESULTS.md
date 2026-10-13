@@ -898,6 +898,74 @@ Even at the lower bounds, none of this session's conclusions change. Future cell
 give each trial its own `-Dmaven.repo.local`, which the protocol already requires for
 Tiko scaffolds, so a trial can only see what its own build downloads.
 
+#### gpt-6-astra on the 4.0.6 control (2026-10-13): the first non-Claude cell, 10/10
+
+**Why this cell exists.** An outside run of OpenAI's gpt-6-astra (Codex CLI 0.162.1,
+macOS, medium reasoning) reported 5/5 on this scaffold. It wasn't comparable to the
+Claude cells:
+- **Prompt:** it used the prompt published in `RUNNING.md`, which permits running the app
+  and doesn't pin the Boot version. Two of its five trials started the app.
+- **Maven cache:** the trials may have shared one.
+- **Records:** it came with no transcripts.
+
+So it was rerun here on the same terms as the Claude cells.
+
+**Setup.**
+- **Harness:** gpt-6-astra via **Codex CLI 0.162.1**, installed from npm into a separate
+  prefix, at `model_reasoning_effort=medium` to match the outside run. N=10, built in
+  parallel; trials `ast-01..10`, built in `W:\bench-contestants\spring-406-astra\`.
+- **Prompt:** the `spring-406` contestant prompt, byte for byte (trial path changed only;
+  checked against each session's first user message).
+- **Isolation:**
+  - a fresh scaffold outside the repo and its own `codex exec` session per trial;
+  - `--ignore-user-config --ignore-rules`;
+  - plugins, apps, browser and computer use, image generation, tool suggestions and
+    subagents disabled with `--disable` flags, with shell, file editing and web search
+    left on;
+  - Windows' elevated sandbox (`-c windows.sandbox="elevated"`, `--sandbox
+    workspace-write`, network on), which lets a trial write only to its own directory and
+    its own Maven repository.
+- **Maven:** each trial got its own empty Maven repository through `MAVEN_OPTS`, per the
+  cache-leak note above. That is stricter than the Claude cells, so compare against
+  their lower bounds.
+- **Account and records:** the Codex session ran on a ChatGPT account. Usage comes from
+  Codex's `turn.completed` totals. Codex reports no per-call usage and no cost, and
+  gpt-6-astra prices weren't available, so `cost_usd` is blank.
+
+**Setup issues, all before any graded trial.**
+- **Model refused:** the first request was refused ("not supported when using Codex with
+  a ChatGPT account"); the model appeared in the account's catalog later the same
+  afternoon.
+- **Sandbox:** without an elevated-sandbox setup every command was "blocked by policy".
+  Once the Codex desktop app set it up, the sandbox setup still failed while the app was
+  running, because the app held a runtime file (`node_repl.exe`) open. The app was closed
+  for the run.
+- **No HTTPS for Windows tools:** inside the sandbox, `curl` can't use Windows' TLS
+  (`SEC_E_NO_CREDENTIALS`). Maven, which uses Java's TLS, downloads normally.
+
+| Model | v1 (01–10) | v2 (01–10) |
+|---|---|---|
+| gpt-6-astra (Codex, medium) | 100 ×10 (**10/10**) | 100 ×10 (**10/10**) |
+
+- **Every trial kept the 4.0.6 parent and added `spring-boot-starter-kafka`**, with Boot
+  4's Jackson 3 (`tools.jackson.databind`). None looked at `~/.m2`. Each trial's own
+  repository started empty, so nothing outside its build could reveal the module name.
+- **No trial started the app, used a subagent, or touched a path outside its directory,
+  its Maven repository and the toolchain.** Three trials (ast-02, 05, 09) wrote unit
+  tests and ran them with Maven. ast-03 first ran a full build, which failed, and then
+  built with `-DskipTests`.
+- **It is fast and terse.** It took a median 194 s per build (143–240), 6 tool calls
+  (4–10), 4.8K output tokens (4.2K–6.4K, of which 0.1K–0.5K reasoning) and 175K input
+  tokens, 33K of them uncached. Fable 5 used about 20K output tokens and 29 turns on the
+  same task. Output tokens are counted differently by the two providers, so compare them
+  loosely.
+
+Against the Claude cells on 4.0.6 in October, gpt-6-astra's 10/10 compares with 29/30
+(27/30 at the cache lower bound) for the 5.5 models and 26/30 for Fable 5. With
+N=10, it is consistent with the 5.5 models and not distinguishable from them. The
+outside run's 5/5 agrees, so the prompt differences didn't change the outcome for this
+model.
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2

@@ -85,6 +85,14 @@ results measured the models *under the July setup*, and part of the 1/20 → 29/
 may be that setup rather than the models. Details:
 [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
+**First non-Claude model: OpenAI's gpt-6-astra went 10/10** on the 4.0.6 scaffold, on both
+fixture sets. It ran through Codex CLI 0.162.1 at medium reasoning, with the same prompt
+and isolation as the Claude cells and its own Maven repository per trial. Every build
+added `spring-boot-starter-kafka` and none looked at the shared cache. The builds were
+quick: a median 194 s, 6 tool calls and 4.8K output tokens each. Cost isn't recorded,
+since no gpt-6-astra prices were available. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "gpt-6-astra on the 4.0.6 control".
+
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
 
@@ -330,7 +338,11 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [ ] Fable 5 with the July session context restored (user settings, plugins, CLAUDE.md,
       trials inside the repo), the remaining candidate for July's 1/5
 - [ ] Per-trial `-Dmaven.repo.local` for all future cells
-- [ ] Run with non-Claude agents
+- [x] First non-Claude agent (2026-10-13): gpt-6-astra via Codex CLI 0.162.1 on the
+      4.0.6 control, 10/10 on v1 and v2, per-trial Maven repositories
+- [ ] More non-Claude agents and cells (Tiko 0.6.0, Boot 4.1.1)
+- [ ] Make `RUNNING.md`'s contestant prompt match the one the 2026-10 cells used (no app
+      run, keep the parent version, named toolchain); an outside run used the old one
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
       held-out acceptance set to detect gate overfitting
