@@ -66,7 +66,7 @@ copy of the golden scaffold.
 
 | Scaffold | Framework version | Result cells |
 |---|---|---|
-| `scaffolds/spring/` | Spring Boot 4.0.6 | `spring-fix` (`spring`, `spring-free`: earlier core-only revision\*) |
+| `scaffolds/spring/` | Spring Boot 4.0.6 | `spring-fix` (`spring`, `spring-free`: earlier core-only revision\*); `spring-406` (5.5-model control, graded on v1 and v2 fixtures) |
 | `scaffolds/spring41/` | Spring Boot 4.1.1 (current) | `spring-411` (graded on v1 and v2 fixtures) |
 | `scaffolds/spring3/` | Spring Boot 3.3.5 (version-recency control) | `spring3-fix` (`spring3`: earlier core-only revision\*) |
 | `scaffolds/tiko/` | Tiko 0.2.2 (historical) | `tiko`, `tiko-mcp` |
@@ -103,7 +103,8 @@ yields at generation time (this is part of the as-shipped condition):
   scaffold by repinning the parent version, because Initializr no longer offers the
   `json` dependency the original command used (see `scaffolds/spring41/GENERATE.md`).
   `4.0.6`, the Initializr default when the benchmark started (2026-06), remains as the
-  `spring-fix` cell. (Initializr serves only supported lines; 3.3.x is no longer
+  `spring-fix` cell, and as `spring-406`, the control that ran the 5.5 models on it
+  (2026-10-13). (Initializr serves only supported lines; 3.3.x is no longer
   offered, so it cannot be pinned via `spring init`.)
 - **Tiko `0.6.0`** via `tiko-archetype:0.6.0` (latest on Maven Central as of
   2026-10-11; scaffold in `scaffolds/tiko6/`, benchmarked 2026-10-11 as `tiko-060`).

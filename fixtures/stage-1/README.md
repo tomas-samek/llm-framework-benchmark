@@ -76,3 +76,11 @@ The `spring-411` cell is the first Spring cell graded on both versions: 30/30 on
 listener and skips a malformed record there, so v2's stricter AC5 found no stall, and
 `exactlyOncePerKey` found no duplicates. Details: `results/RESULTS.md` → "Spring Boot
 4.1.1 on the 5.5 models".
+
+## Spring Boot 4.0.6 control (2026-10-13)
+
+The `spring-406` cell (same models on the 4.0.6 scaffold) scored 29/30 on both versions.
+The one failure, Sonnet s55-08, never started (Spring Data didn't find its nested
+repository interfaces), so it scored 0/7 on v1 and on v2. The other 29 skip the malformed
+record inside the listener, as in `spring-411`, and v2 found no stall or duplicate.
+Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

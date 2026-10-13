@@ -634,10 +634,11 @@ Jackson 3 mapper (`tools.jackson`). All 30 v2 app logs show Spring Boot v4.1.1 s
 - **Isolation:** all 30 transcripts were checked: no trial touched any path outside its
   own trial directory, not even a temp folder. No contestant process was left running.
 
-**Attribution caveat.** The 5.5 models were run on 4.1.1, not 4.0.6. The Kafka starter
-split is the same in both, and all 30 builds used the fix, so the newer models' Boot 4
-knowledge is the likely difference; a 4.0.6 control on the 5.5 models would separate
-the model effect from the patch-level version change.
+**Attribution caveat (resolved 2026-10-13).** The 5.5 models were run on 4.1.1, not
+4.0.6, so the model generation and the patch-level version changed together. The 4.0.6
+control below settles it: on the 4.0.6 scaffold the same models scored 29/30, and all 30
+added `spring-boot-starter-kafka`. The model generation made the difference, not the
+patch release.
 
 **Cost, against Tiko 0.6.0 on the same models.** Input-side cost is exact; output tokens
 are a lower bound (final usage on 83/284 calls here).
@@ -653,6 +654,67 @@ builds take more calls, and cost follows the call count. The gap is smaller than
 3–4× measured on Tiko 0.2.2/0.3.0. Haiku's larger cost ratio comes from its
 long-prompt tier: 11 of 15 Tiko trials crossed 100K prompt tokens, against none of the
 Spring trials.
+
+### 🆕 Spring Boot 4.0.6 control on the 5.5 models (2026-10-13)
+
+This cell separates the model effect from the 4.0.6 → 4.1.1 change. It is `spring-406`:
+the original `scaffolds/spring/` (Boot **4.0.6**, the scaffold every earlier model scored
+0–20% on), with the same contestant prompt as `spring-411` (trial path changed only).
+Models: **Claude Opus 5.5, Sonnet 5.5, Haiku 5.5** (model IDs verified from each
+transcript), N=10 each. Each model's 10 trials were built together. Grading ran
+sequentially after the last build: a fresh broker and a restore from the post-build
+snapshot before each one, on both **v1** and **v2** fixtures.
+
+| Model | v1 (01–10) | v1 median | v2 (01–10) | v2 median |
+|---|---|---|---|---|
+| Opus 5.5 | 100 ×10 | **100%** (10/10) | 100 ×10 | **100%** (10/10) |
+| Sonnet 5.5 | 100 ×9, 0 (s55-08) | **100%** (9/10) | 100 ×9, 0 (s55-08) | **100%** (9/10) |
+| Haiku 5.5 | 100 ×10 | **100%** (10/10) | 100 ×10 | **100%** (10/10) |
+
+**29/30 on v1, 29/30 on v2. Every trial kept the 4.0.6 parent and every trial added
+`spring-boot-starter-kafka`**, the fix that 19 of 20 earlier-generation trials missed on
+this same scaffold. All 30 used Jackson 3 (`tools.jackson.databind`; only annotations
+come from `com.fasterxml.jackson.annotation`). All 29 apps that started logged Spring
+Boot v4.0.6 and passed v2's AC5, so they skipped the malformed record. The `spring-411`
+result therefore isn't a patch-release effect: the 5.5 models know the Boot 4 Kafka
+module split on 4.0.6 as well.
+
+- **The one failure is unrelated to Boot 4.** s55-08 put its three Spring Data
+  repositories inside a holder class (`Repos.ProductRepo` etc.). Spring Data doesn't scan
+  nested repository interfaces by default on any Boot version, so the context fails at
+  startup (`required a bean of type 'eu.bench.notify.Repos$ProductRepo'`) and the oracle
+  sees no notifications: 0/7 on both versions. The contestant built with
+  `-DskipTests` and said in its report "I did not start the app". The scaffold's
+  `contextLoads` test, which it kept, would have caught it.
+- **Bad messages:** as in `spring-411`, every trial consumes String payloads and parses
+  JSON inside the listener, so a malformed record is caught, logged and skipped there.
+- **Persistence:** 24 used `JdbcTemplate`/`JdbcClient` with H2 `MERGE`. 6 used Spring Data
+  JPA: o55-01, 02, 04, 08 and 10, plus s55-08. 19 used a file-based H2 database under the
+  trial directory (all 10 Haiku trials); the snapshot restore before each grading resets it.
+- **Ordering:** 26 use one listener per topic. o55-03, o55-06, s55-07 and s55-10 read all
+  topics with a single consumer. Both designs passed AC6.
+- **Self-testing:** four Opus trials (o55-01, 04, 06, 09) wrote tests beyond the
+  scaffold's context test. s55-10 deleted the scaffold test.
+- **Isolation:** all 30 transcripts were checked; no stray JVMs were left. Three Opus
+  trials used the orchestrating session's scratchpad for their own files: o55-03 wrote
+  `tree.txt`, o55-05 ran `javap` from it on `~/.m2` jars, and o55-07 unpacked a jar into
+  it. None read anything it didn't create, and no grading material is kept there. h55-03
+  ran `git status`/`git log` from its trial directory. Trial directories sit inside this
+  repo, so it saw recent commit titles and the names of result files being written by
+  the concurrent Opus grading run, but no scores. No other trial looked outside its
+  directory.
+
+**Cost, 4.0.6 against 4.1.1.** Input-side cost is exact; output tokens are a lower bound
+(final usage on 55/273 calls here).
+
+| Model | Spring 4.0.6: median input-side · avg calls | Spring 4.1.1: median input-side · avg calls |
+|---|---|---|
+| Opus 5.5 | $0.44 · 11.8 | $0.44 · 12.0 |
+| Sonnet 5.5 | $0.18 · 6.9 | $0.18 · 6.7 |
+| Haiku 5.5 | $0.012 · 8.6 | $0.013 · 9.7 |
+
+The two patch releases are indistinguishable on cost, calls and compliance, so the
+`spring-411` comparison with Tiko 0.6.0 above holds for 4.0.6 too.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
