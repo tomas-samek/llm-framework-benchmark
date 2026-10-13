@@ -8,8 +8,10 @@
 **How well can an AI coding agent build the *same specified system* on different frameworks?**
 A framework-neutral spec, an external black-box oracle that grades the result, and
 clean per-framework scaffolds — so the only variable is the framework (and the
-agent). First comparison: **Spring Boot vs [Tiko DI](https://github.com/tomas-samek/tiko-di)**,
-on an event-driven Kafka → H2 → merged-notification service.
+agent). The first spec is an event-driven Kafka → H2 → merged-notification service,
+built on Spring Boot (3.3.5, 4.0.6 and 4.1.1) and on
+[Tiko DI](https://github.com/tomas-samek/tiko-di), a framework the models were never
+trained on.
 
 The benchmark grades each run on **compliance** (does it actually pass the
 acceptance scenarios, judged by an independent harness — not the agent's own
@@ -20,19 +22,14 @@ tests), with hooks for **efficiency** and **code quality**.
 
 🌐 **More projects and writing:** [tomas-samek.github.io](https://tomas-samek.github.io/)
 
-> **Note on Tiko — intentionally unknown to LLMs.** Tiko DI is *purposefully*
-> developed and used as an **out-of-training-corpus** framework. Its premise is
-> that a framework can be AI-friendly **without** relying on the model's prior
-> familiarity — instead shipping machine-readable, in-repo affordances:
-> guidance (`CLAUDE.md`, `.ai-skills/`), compile-time wiring validation, and an
-> MCP topology server. So in this benchmark Tiko is a deliberate test case for the
-> question *"can an agent succeed on a framework it was never trained on, given
-> good in-repo affordances?"* — which is also why it makes a fair foil for a
-> brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: yes — 86%
-> median on Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations,
-> vs Boot-4's 0% on the same older models. Boot 4 is no longer a wall: the 5.5 models
-> scored 30/30 on 4.1.1 and 29/30 on 4.0.6, and Fable 5, rerun on the current Claude Code,
-> 17/20 on 4.0.6.)
+> **Why Tiko is in the benchmark — it's intentionally unknown to LLMs.** Tiko DI is
+> developed and used as an **out-of-training-corpus** framework. Its premise is that a
+> framework can be AI-friendly **without** relying on the model's prior familiarity,
+> by shipping machine-readable, in-repo affordances instead: guidance (`CLAUDE.md`,
+> `.ai-skills/`), compile-time wiring validation, and an MCP topology server. Here it
+> is the test case for the question *"can an agent succeed on a framework it was never
+> trained on, given good in-repo affordances?"* (Stage-1 answer: yes — 86% median on
+> Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations.)
 
 ## Headline results — Stage 1
 
@@ -98,10 +95,10 @@ on a framework it was never trained on, and cheaper models lose almost nothing: 
 input-side cost per build is $0.95 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
 Haiku 5.5.
 
-**Current release vs current release, current models:** Spring Boot 4.1.1 and Tiko 0.6.0
-are now both solved by every model, and Spring has the edge on both remaining axes.
-Spring went 30/30 on v2 against Tiko's 33/35, and a Spring build costs about half as
-much, because it takes 1.7–1.9× fewer API calls:
+**Both current releases on the current models:** every model now builds the service on
+Spring Boot 4.1.1 and on Tiko 0.6.0. On the stricter v2 fixtures Spring went 30/30 and
+Tiko 33/35, and a Spring build costs about half as much, because it takes 1.7–1.9× fewer
+API calls:
 
 | Median input-side cost per build | Opus 5.5 | Sonnet 5.5 | Haiku 5.5 |
 |---|---|---|---|
@@ -159,7 +156,7 @@ on 0.2.2 to 100% on every model since.
 prices (Opus 5.5 bills cache reads at 0.05× input). Its builds are the cheapest of
 any Tiko cell and its call counts the lowest, but no model was run on both 0.5.0 and
 0.6.0, so that step can't be split between Tiko, the newer models and the pricing.
-The Tiko 0.3.0 vs Spring token and cost tables, by model, are in `results/RESULTS.md`
+The Tiko 0.3.0 and Spring token and cost tables, by model, are in `results/RESULTS.md`
 → "Erratum (2026-10-11)".
 
 ### What it found
