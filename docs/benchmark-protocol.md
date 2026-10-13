@@ -140,7 +140,12 @@ Each trial sees **only** its golden scaffold + the stage spec (+ for Stage 3, th
 Stage-1 result it builds on). A trial must not have access to:
 - the other framework's repository,
 - the two original projects (`test-no-tiko`, `tiko-warmup-test`),
-- any prior trial.
+- any prior trial,
+- artifacts other projects put in a shared Maven cache. A listing of a shared `~/.m2`
+  shows module names the trial's own build never downloaded. In 2026-10 this leaked the
+  Boot 4 Kafka starter's name to six trials (`results/RESULTS.md` → "Maven cache leak").
+  Give each trial its own `-Dmaven.repo.local`. Reading the project's own parent BOM is
+  fine.
 
 Fresh agent session per trial. No carry-over context.
 
@@ -151,8 +156,11 @@ outside this repo, with `--setting-sources ""`, `--strict-mcp-config`, auto-memo
 `--permission-mode auto`, and the Agent/Workflow tools disallowed (first used for Fable 5
 in `spring-406`, 2026-10-13; full command in `results/RESULTS.md`). The two harnesses
 gave the same result for Fable 5 on Boot 4.0.6 (9/10 headless, 8/10 as a subagent of a
-headless Fable 5 session, both on Claude Code 2.1.296), but the July subagent run on
-2.1.197 scored 1/5. Record the harness and Claude Code version with every cell.
+headless Fable 5 session, both on Claude Code 2.1.296), and so did Claude Code 2.1.197
+(9/10 as a subagent). The July subagent run on 2.1.197 nonetheless scored 1/5. It ran
+inside an interactive session with user settings, plugins and CLAUDE.md, with the
+trials inside the repo. Record the harness, the Claude Code version and the session
+context with every cell.
 
 ## 6. As-shipped guidance
 
@@ -228,10 +236,12 @@ rely on the rubric to keep scoring consistent. Reviews stored in
   generous and identical across cells.
 - **Single model / single point in time:** results describe this model+versions;
   re-run on model upgrades.
-- **Harness drift:** the agent harness (Claude Code version, subagent vs top-level
-  session) affects results; the same model and prompt went from 1/5 (July, Claude Code
-  2.1.197) to 8/10 as a subagent and 9/10 headless (October, 2.1.296) on Boot 4.0.6.
-  Cross-time comparisons confound model and harness.
+- **Harness drift:** the conditions around the agent affect results. The same model and
+  prompt on Boot 4.0.6 went from 1/5 (July, a subagent inside an interactive session) to
+  8–9/10 in October as a clean headless session or its subagent, on both Claude Code
+  2.1.296 and July's 2.1.197. The Claude Code version and the subagent form are ruled out.
+  Session context and serving-side changes are not. Cross-time comparisons confound
+  model and harness.
 
 ## 10. Deliverables per cell
 

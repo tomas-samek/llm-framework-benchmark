@@ -238,3 +238,13 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-10-13T09:28:51Z,claude-fable-5,spring-406,stage-1,19,100,88,21578,,,1.987
 2026-10-13T09:30:44Z,claude-fable-5,spring-406,stage-1,20,100,88,19955,,,1.964
 2026-10-13T09:53:04Z,claude-fable-5,spring-406,stage-1,12,100,88,19080,,,1.859
+2026-10-13T14:12:35Z,claude-fable-5,spring-406,stage-1,21,100,87,18949,,,1.985
+2026-10-13T14:14:21Z,claude-fable-5,spring-406,stage-1,22,100,87,16531,,,1.625
+2026-10-13T14:16:07Z,claude-fable-5,spring-406,stage-1,23,100,87,18827,,,1.719
+2026-10-13T14:17:59Z,claude-fable-5,spring-406,stage-1,24,100,88,25764,,,2.269
+2026-10-13T14:19:53Z,claude-fable-5,spring-406,stage-1,25,0,88,20813,,,2.087
+2026-10-13T14:21:46Z,claude-fable-5,spring-406,stage-1,26,100,88,17332,,,1.707
+2026-10-13T14:23:39Z,claude-fable-5,spring-406,stage-1,27,100,88,27207,,,2.816
+2026-10-13T14:25:33Z,claude-fable-5,spring-406,stage-1,28,100,89,24084,,,2.137
+2026-10-13T14:27:26Z,claude-fable-5,spring-406,stage-1,29,100,88,24056,,,2.374
+2026-10-13T14:29:19Z,claude-fable-5,spring-406,stage-1,30,100,88,20069,,,1.854

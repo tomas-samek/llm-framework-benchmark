@@ -633,6 +633,10 @@ Jackson 3 mapper (`tools.jackson`). All 30 v2 app logs show Spring Boot v4.1.1 s
   deleted the scaffold's broker-dependent context test.
 - **Isolation:** all 30 transcripts were checked: no trial touched any path outside its
   own trial directory, not even a temp folder. No contestant process was left running.
+  That check let reads of Maven's local repository through. Three trials (h55-02, h55-07,
+  o55-06) listed `~/.m2/repository/org/springframework/boot`, saw
+  `spring-boot-starter-kafka` there, and added it on the next call. Counting them as
+  failures, this cell scores 27/30. See "Maven cache leak" below.
 
 **Attribution caveat (resolved 2026-10-13).** The 5.5 models were run on 4.1.1, not
 4.0.6, so the model generation and the patch-level version changed together. The 4.0.6
@@ -703,7 +707,10 @@ module split on 4.0.6 as well.
   ran `git status`/`git log` from its trial directory. Trial directories sit inside this
   repo, so it saw recent commit titles and the names of result files being written by
   the concurrent Opus grading run, but no scores. No other trial looked outside its
-  directory.
+  directory, apart from Maven's local repository: h55-03 and h55-06 listed
+  `~/.m2/repository/org/springframework/boot`, saw `spring-boot-starter-kafka`, and added
+  it on the next call. Counting them as failures, this cell scores 27/30. o55-07 tried the
+  same listing, but auto mode blocked it. See "Maven cache leak" below.
 
 **Cost, 4.0.6 against 4.1.1.** Input-side cost is exact; output tokens are a lower bound
 (final usage on 55/273 calls here).
@@ -717,7 +724,7 @@ module split on 4.0.6 as well.
 The two patch releases are indistinguishable on cost, calls and compliance, so the
 `spring-411` comparison with Tiko 0.6.0 above holds for 4.0.6 too.
 
-#### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce, as a subagent either
+#### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce, as a subagent or on July's Claude Code
 
 Fable 5 scored 1/5 on this scaffold in July (`spring-fix`, "Multi-model extension").
 The Agent tool's `fable` alias now resolves to Fable 5.1, so the original model was run
@@ -746,9 +753,18 @@ byte for byte, and every subagent call ran on `claude-fable-5`. These are `f5s-0
 drops the prefix). A first launch hit the account's usage limit within two minutes and
 was discarded; the trials were reset from the scaffold and rerun.
 
+A third batch repeated the subagent batch on **Claude Code 2.1.197**, the version July
+ran on, installed from npm into a separate prefix (`@anthropic-ai/claude-code@2.1.197`,
+auto-updater off) with the same flags, prompt and checks. A smoke session first confirmed
+the subagent ran on `claude-fable-5` with no CLAUDE.md, memory, git state or MCP servers
+in its context. These are `f5o-01..10` (built in `W:\bench-contestants\spring-406-197\`;
+CSV trials 21–30). Its first launch also hit the usage limit, partway through every
+build; all ten were discarded, reset from the scaffold and rerun after the limit reset.
+
 | Run | Harness | Claude Code | Result on 4.0.6 |
 |---|---|---|---|
 | July (`spring-fix`) | subagent of a Fable 5 session | 2.1.197 | **1/5** |
+| Now (`spring-406` f5o) | subagent of a headless Fable 5 session | 2.1.197 | **9/10** on v1, **9/10** on v2 (8/10 without f5o-07, see below) |
 | Now (`spring-406` f5s) | subagent of a headless Fable 5 session | 2.1.296 | **8/10** on v1, **8/10** on v2 |
 | Now (`spring-406` f5) | headless top-level session | 2.1.296 | **9/10** on v1, **9/10** on v2 |
 
@@ -766,8 +782,9 @@ missing-`KafkaTemplate` error, so they were not re-graded.
 - **The one failure (f5-10) is the classic July one:** plain `spring-kafka`, no Kafka
   config, `required a bean of type 'org.springframework.kafka.core.KafkaTemplate'`. Its
   only Boot 4 fix was the Jackson 3 package move.
-- **No contestant touched `~/.m2`**, which by now holds the Boot 4 Kafka jars from the
-  5.5 runs, or anything else outside its trial directory. The fix came from the model.
+- **No headless contestant touched `~/.m2`**, which by now holds the Boot 4 Kafka jars
+  from earlier runs, or anything else outside its trial directory. The fix came from the
+  model.
   f5-08's two permission denials were reads of its own tool-output files under
   `~/.claude/projects`, blocked by auto mode.
 - Both runs had extended thinking (13–14 thinking blocks per trial), so that isn't the
@@ -776,21 +793,43 @@ missing-`KafkaTemplate` error, so they were not re-graded.
   f5s-08 added the `spring-boot-kafka` auto-config module directly; all eight passed.
   f5s-01 and f5s-05 used plain `spring-kafka` with no Kafka config and failed on the
   missing `KafkaTemplate` bean, the July failure. Isolation was as clean as the headless
-  batch: f5s-06 used its own session's temp folder and f5s-08 read its own tool output,
-  nothing else outside the trial directories.
+  batch: f5s-06 used its own session's temp folder and f5s-08 read its own tool output.
+  f5s-01 and f5s-04 looked into `~/.m2`, but neither saw a Kafka module name there before
+  naming one itself.
+- **The 2.1.197 batch looks the same too, with one cache-assisted pass.** Eight added
+  `spring-boot-starter-kafka`, f5o-08 set Kafka up by hand (`@EnableKafka` plus explicit
+  factory and template beans), and f5o-05 made the July mistake (plain `spring-kafka`,
+  missing `KafkaTemplate` at startup, 0/7 on both versions). Seven of the eight named the
+  starter on their own, five of them by tool call 6. **f5o-07 did not:** it built first
+  with plain `spring-kafka`, then went looking for a Boot Kafka module (effective POM,
+  then a filtered listing of `~/.m2/repository/org/springframework/boot`). That listing
+  showed `spring-boot-starter-kafka`, and it switched on the next call. Without that pass
+  the batch is 8/10. f5o-01, f5o-04 and f5o-09 also opened `~/.m2`, but only after they
+  had added the starter. f5o-07's other out-of-trial command was a fallback search of
+  `W:\` for one Jackson jar, which ran only if the jar was missing from `~/.m2`. It wasn't
+  missing, and nothing else left the trial directories. 5–18 thinking blocks per trial.
 
-**What this changes.** Same model ID, same prompt, same scaffold, same subagent harness:
-**1/5 in July, 8/10 now** (one-sided Fisher p = 0.047). Run as a top-level session it's
-9/10, which is no different from 8/10 (p = 0.5), so the subagent-vs-session form isn't
-what matters. July against both current batches together (17/20) gives p = 0.012. What
-differs is when it ran: Claude Code 2.1.197 then, 2.1.296 now, which means a different
-system prompt and tool set. The July orchestrator was also an interactive session in
-`W:\workspace` with the user's settings and plugins, which a subagent may partly inherit.
+**What this changes.** Same model ID, same prompt, same scaffold, same subagent harness,
+**and now the same Claude Code version: 1/5 in July, 9/10 now** (8/10 without f5o-07;
+one-sided Fisher p = 0.017, or 0.047 at 8/10). The three current batches agree with each
+other (9/10, 8/10, 9/10; 2.1.197 against 2.1.296 as subagents, p = 1.0), and July
+against all 26/30 gives p = 0.006 (0.010 at 25/30). So neither the subagent form nor the
+Claude Code version explains July. What remains is what wasn't reproduced:
+- **The July session.** The orchestrator was an interactive session in `W:\workspace`
+  with the user's settings, plugins, CLAUDE.md and memory, and the July trials sat inside
+  this repo's `runs/` with its git state. A subagent inherits some of that context. Every
+  current batch strips all of it.
+- **Serving-side change** to `claude-fable-5` between July and October, under the same
+  model ID. Nothing on this side can test that.
+- **Chance**, which the p-values above make unlikely but which five July trials can't
+  rule out.
+
 The earlier reading, "Fable 5 carries the Boot 4 knowledge but retrieves it 1 time in 5",
-described the model *under the July harness*. Because every earlier-generation result
-on 4.0.6 came from older Claude Code versions, the jump from 1/20 (July, four models) to
-29/30 (5.5 models) is not cleanly a model-generation effect either. Rerunning Fable 5 on
-Claude Code 2.1.197 would test whether the Claude Code version alone explains it.
+described the model *under the July setup*. Because every earlier-generation result on
+4.0.6 came from that setup, the jump from 1/20 (July, four models) to 29/30 (5.5 models)
+is not cleanly a model-generation effect either. The next test would run the 2.1.197
+batch with the July session context restored: user settings, plugins and CLAUDE.md, and
+trials inside the repo.
 
 **Cost** (exact, from the CLI's `total_cost_usd`, list prices): median **$2.14** per
 build (range $1.79–2.55), 29 turns, 20.3K output tokens. July's five Fable 5 builds on
@@ -806,6 +845,58 @@ at 15% of the true count (33.8K of 227K). The input side matches: exact total mi
 reconstructed input-side cost is a median $1.11, which is the exact output tokens (22.2K)
 at $50/M. So the 5.5 cells' input-side figures stand, but their totals understate real
 cost by most of the output share.
+
+The 2.1.197 batch costs a median **$2.04** per build (range $1.63–2.82), 20.4K output
+tokens, 14.5 API calls. The CLI's `claude-fable-5` cost minus the orchestrator's comes to
+the same figure as transcript reconstruction, to the token, on all ten trials. Claude
+Code 2.1.197 writes final usage on every call, so the undercount above comes from
+2.1.296's transcripts, not from the method. Two harness costs differ: the 2.1.197
+orchestrator costs $0.51 per trial against $0.17 on 2.1.296, and 2.1.197 adds about $0.001
+of Haiku 4.5 per session, left out of the contestant cost.
+
+#### Maven cache leak (found 2026-10-13)
+
+Every Spring trial on this machine shares one Maven local repository, `~/.m2`. Since
+2026-06-10, before any July run, it has held `spring-boot-starter-kafka` and
+`spring-boot-kafka` 4.0.6, the module names that are the whole Boot 4 fix. The 4.1.1
+versions arrived on 2026-10-12. A contestant that lists
+`~/.m2/repository/org/springframework/boot` sees those names, because some other project
+downloaded them. That isn't information the trial's own build provides. The project's
+own parent BOM (`spring-boot-dependencies`) is different: every trial downloads it, it
+names the managed Kafka modules, and reading it counts as finding the fix in the project.
+The isolation checks allowed `~/.m2` as toolchain, so directory listings weren't caught
+at the time.
+
+All 80 current-generation Spring transcripts were checked (`spring-411` and `spring-406`;
+5.5 subagents, and Fable 5 headless, subagent and 2.1.197). The check finds the first
+`~/.m2` access, whether its output showed a Kafka module name, and the first tool call or
+visible text naming the module. Thinking text isn't stored in these transcripts, so a
+trial that saw the name before writing it may still have known it.
+
+| Cell | Graded | Saw the module in `~/.m2` before naming it | Counting those as failures |
+|---|---|---|---|
+| `spring-411`, 5.5 models | 30/30 | h55-02, h55-07, o55-06 | 27/30 |
+| `spring-406`, 5.5 models | 29/30 | h55-03, h55-06 | 27/30 |
+| `spring-406` f5, Fable 5 headless | 9/10 | none | 9/10 |
+| `spring-406` f5s, Fable 5 subagent | 8/10 | none | 8/10 |
+| `spring-406` f5o, Fable 5 on 2.1.197 | 9/10 | f5o-07 (switched to the starter right after) | 8/10 |
+
+All six flagged trials got the name from a directory listing, not from the BOM. Ten more
+5.5 trials opened `~/.m2` in the same tool call that named the module (e.g.
+`ls ~/.m2/.../spring-boot-starter-kafka`), so they knew it already. o55-05 (4.0.6) and
+h55-01 (4.1.1) opened it only after naming it.
+
+The July `spring-fix` transcripts (session `155baf58` under `W:\workspace`) were checked
+the same way, since the cache held the starter then too. No July trial saw a Kafka
+module name in a cache listing. Eleven of the twenty looked into `~/.m2`. Ten of them
+looked for `spring-kafka`, Jackson or parent-POM files, or looked only after naming the
+module. The eleventh is July's one pass, f5-05, which found
+`spring-boot-starter-kafka` by grepping its parent BOM in `~/.m2` (tool call 21) and added it at
+call 22. That is the legitimate route above. So the July 1/20 stands as measured.
+
+Even at the lower bounds, none of this session's conclusions change. Future cells should
+give each trial its own `-Dmaven.repo.local`, which the protocol already requires for
+Tiko scaffolds, so a trial can only see what its own build downloads.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 

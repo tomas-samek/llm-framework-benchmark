@@ -83,7 +83,8 @@ The `spring-406` cell (same models on the 4.0.6 scaffold) scored 29/30 on both v
 The one failure, Sonnet s55-08, never started (Spring Data didn't find its nested
 repository interfaces), so it scored 0/7 on v1 and on v2. The other 29 skip the malformed
 record inside the listener, as in `spring-411`, and v2 found no stall or duplicate.
-Fable 5, added to the cell twice, scored 9/10 headless and 8/10 as a subagent, the same
-on both versions. Its failures (f5-10, f5s-01, f5s-05) are the classic missing
-`KafkaTemplate` bean, so they scored 0/7 on both.
+Fable 5, added to the cell three times, scored 9/10 headless, 8/10 as a subagent and 9/10
+as a subagent on Claude Code 2.1.197, the same on both versions. Its failures (f5-10,
+f5s-01, f5s-05, f5o-05) are the classic missing `KafkaTemplate` bean, so they scored 0/7
+on both.
 Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

@@ -68,13 +68,22 @@ The 4.0.6 control (2026-10-13) shows the patch release isn't the difference: on 
 5.5 trial, never started because Spring Data didn't find its nested repository
 interfaces, which is unrelated to Boot 4. Both fixture sets gave the same scores.
 
+One caveat on both cells: all trials share one Maven cache, which has held the Boot 4
+Kafka starter since June. Five Haiku and Opus trials listed it and added the starter right
+after seeing it there. Counting those five as failures, the cells score 27/30 on 4.1.1
+and 27/30 on 4.0.6. No July trial got the module name this way. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "Maven cache leak".
+
 **But it isn't cleanly a model-generation effect.** Fable 5, the model that scored 1/5 on
 this scaffold in July, was rerun with the identical prompt and scaffold: **8/10** as a
-subagent, as in July, and **9/10** as a top-level session. The model ID and the subagent
-setup are the same as in July; what changed is the Claude Code version (2.1.197 → 2.1.296)
-and the session around it. So the July results measured the models *under the July
-harness*, and part of the 1/20 → 29/30 jump may be the harness rather than the models.
-Details: [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
+subagent, as in July, **9/10** as a top-level session, and **9/10** as a subagent on
+Claude Code 2.1.197, the version July ran on (8/10 without one cache-assisted pass). So
+neither the subagent form nor the Claude Code version explains July. What's left is the
+July session itself (an interactive session with user settings, plugins and CLAUDE.md,
+and trials inside the repo), or a serving-side change under the same model ID. The July
+results measured the models *under the July setup*, and part of the 1/20 → 29/30 jump
+may be that setup rather than the models. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
@@ -313,8 +322,14 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Fable 5 on the 4.0.6 control (2026-10-13): 9/10 headless and 8/10 as a subagent,
       against July's 1/5 with the same prompt, so the subagent form isn't the cause.
       Cost $2.14 and $2.24 per build (exact).
-- [ ] Fable 5 on Claude Code 2.1.197, to test whether the Claude Code version alone
-      explains July's 1/5
+- [x] Fable 5 on Claude Code 2.1.197 (2026-10-13): 9/10 (8/10 without a cache-assisted
+      pass), so the Claude Code version doesn't explain July's 1/5. Cost $2.04 per build.
+- [x] Maven cache check (2026-10-13): five 5.5 trials and one Fable 5 trial read the
+      Kafka module name from a listing of the shared `~/.m2`; lower bounds 27/30 on both
+      5.5 Spring cells. No July trial did.
+- [ ] Fable 5 with the July session context restored (user settings, plugins, CLAUDE.md,
+      trials inside the repo), the remaining candidate for July's 1/5
+- [ ] Per-trial `-Dmaven.repo.local` for all future cells
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
