@@ -717,7 +717,7 @@ module split on 4.0.6 as well.
 The two patch releases are indistinguishable on cost, calls and compliance, so the
 `spring-411` comparison with Tiko 0.6.0 above holds for 4.0.6 too.
 
-#### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce
+#### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce, as a subagent either
 
 Fable 5 scored 1/5 on this scaffold in July (`spring-fix`, "Multi-model extension").
 The Agent tool's `fable` alias now resolves to Fable 5.1, so the original model was run
@@ -736,10 +736,28 @@ prompt is word-for-word the July `spring-fix` prompt (trial path changed only). 
 were copied into `runs/stage-1/spring-406/` and graded like the 5.5 trials. N=10, built
 in parallel (01 first, then 02–10), model `claude-fable-5` in every transcript.
 
+A second batch then repeated July's harness on the current Claude Code: a headless
+Fable 5 orchestrator per trial (same flags, Agent tool allowed) dispatched one
+general-purpose subagent with no model override, which inherits Fable 5, passing the
+contestant prompt verbatim. Checked per trial: the orchestrator made exactly that one
+Agent call and nothing else, the subagent's first message equals the intended prompt
+byte for byte, and every subagent call ran on `claude-fable-5`. These are `f5s-01..10`
+(built in `W:\bench-contestants\spring-406-sub\`; CSV trials 11–20, since `grade-batch`
+drops the prefix). A first launch hit the account's usage limit within two minutes and
+was discarded; the trials were reset from the scaffold and rerun.
+
 | Run | Harness | Claude Code | Result on 4.0.6 |
 |---|---|---|---|
 | July (`spring-fix`) | subagent of a Fable 5 session | 2.1.197 | **1/5** |
+| Now (`spring-406` f5s) | subagent of a headless Fable 5 session | 2.1.296 | **8/10** on v1, **8/10** on v2 |
 | Now (`spring-406` f5) | headless top-level session | 2.1.296 | **9/10** on v1, **9/10** on v2 |
+
+f5s-02's first v1 grading is invalid and was redone. Its JVM exited about a second into
+startup after two log lines: no error, no `hs_err` file, no Windows event. The oracle
+then saw no app (0/7). The same snapshot passed v2 7/7, and the v1 re-grade from the
+snapshot passed 7/7. The invalid row was removed from `metrics.csv`; its result file and
+logs are kept outside the repo. f5s-01 and f5s-05 failed on both passes with an explicit
+missing-`KafkaTemplate` error, so they were not re-graded.
 
 - **Seven trials added `spring-boot-starter-kafka`**, naming it within their first 6–9
   tool calls, before any build. **Two (f5-04, f5-05) kept plain `spring-kafka` and
@@ -754,21 +772,40 @@ in parallel (01 first, then 02–10), model `claude-fable-5` in every transcript
   `~/.claude/projects`, blocked by auto mode.
 - Both runs had extended thinking (13–14 thinking blocks per trial), so that isn't the
   difference either.
+- **The subagent batch looks the same.** Seven added `spring-boot-starter-kafka`, and
+  f5s-08 added the `spring-boot-kafka` auto-config module directly; all eight passed.
+  f5s-01 and f5s-05 used plain `spring-kafka` with no Kafka config and failed on the
+  missing `KafkaTemplate` bean, the July failure. Isolation was as clean as the headless
+  batch: f5s-06 used its own session's temp folder and f5s-08 read its own tool output,
+  nothing else outside the trial directories.
 
-**What this changes.** Same model ID, same prompt, same scaffold: 1/5 then, 9/10 now
-(one-sided Fisher p = 0.017). What changed is the harness (subagent → top-level session)
-and the Claude Code version (2.1.197 → 2.1.296). The earlier reading, "Fable 5 carries the
-Boot 4 knowledge but retrieves it 1 time in 5", described the model *under that harness*.
-And because every earlier-generation result on 4.0.6 came from older Claude Code
-versions, the jump from 1/20 (July, four models) to 29/30 (5.5 models) is not cleanly a
-model-generation effect either. A Fable 5 **subagent** on the current Claude Code (a
-headless Fable 5 session spawning subagents, which inherit its model) would separate
-the harness from the Claude Code version.
+**What this changes.** Same model ID, same prompt, same scaffold, same subagent harness:
+**1/5 in July, 8/10 now** (one-sided Fisher p = 0.047). Run as a top-level session it's
+9/10, which is no different from 8/10 (p = 0.5), so the subagent-vs-session form isn't
+what matters. July against both current batches together (17/20) gives p = 0.012. What
+differs is when it ran: Claude Code 2.1.197 then, 2.1.296 now, which means a different
+system prompt and tool set. The July orchestrator was also an interactive session in
+`W:\workspace` with the user's settings and plugins, which a subagent may partly inherit.
+The earlier reading, "Fable 5 carries the Boot 4 knowledge but retrieves it 1 time in 5",
+described the model *under the July harness*. Because every earlier-generation result
+on 4.0.6 came from older Claude Code versions, the jump from 1/20 (July, four models) to
+29/30 (5.5 models) is not cleanly a model-generation effect either. Rerunning Fable 5 on
+Claude Code 2.1.197 would test whether the Claude Code version alone explains it.
 
 **Cost** (exact, from the CLI's `total_cost_usd`, list prices): median **$2.14** per
 build (range $1.79–2.55), 29 turns, 20.3K output tokens. July's five Fable 5 builds on
 this scaffold averaged $1.90. Opus 5.5's median on the same cell is $0.61 (its output
 side is a lower bound), so Fable 5 costs about 3.5× as much per build.
+
+The subagent batch costs a median **$2.24** per build (range $1.77–3.21), 22.2K output
+tokens. That is the CLI's exact total for orchestrator plus subagent, minus the
+orchestrator's own $0.17 (both of its calls carry final usage, so that part is exact
+too). The transcript reconstruction used for the 5.5 cells recovers only $1.21 of it:
+the subagent transcripts carry final usage on 22 of 148 calls, so output tokens come out
+at 15% of the true count (33.8K of 227K). The input side matches: exact total minus
+reconstructed input-side cost is a median $1.11, which is the exact output tokens (22.2K)
+at $50/M. So the 5.5 cells' input-side figures stand, but their totals understate real
+cost by most of the output share.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 

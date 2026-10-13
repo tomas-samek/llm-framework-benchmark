@@ -150,9 +150,9 @@ runs as a headless top-level session instead: `claude -p --model <id>` from a di
 outside this repo, with `--setting-sources ""`, `--strict-mcp-config`, auto-memory off,
 `--permission-mode auto`, and the Agent/Workflow tools disallowed (first used for Fable 5
 in `spring-406`, 2026-10-13; full command in `results/RESULTS.md`). The two harnesses
-are not interchangeable: Fable 5 scored 1/5 on Boot 4.0.6 as a subagent on Claude Code
-2.1.197 and 9/10 headless on 2.1.296. Record the harness and Claude Code version with
-every cell.
+gave the same result for Fable 5 on Boot 4.0.6 (9/10 headless, 8/10 as a subagent of a
+headless Fable 5 session, both on Claude Code 2.1.296), but the July subagent run on
+2.1.197 scored 1/5. Record the harness and Claude Code version with every cell.
 
 ## 6. As-shipped guidance
 
@@ -229,8 +229,9 @@ rely on the rubric to keep scoring consistent. Reviews stored in
 - **Single model / single point in time:** results describe this model+versions;
   re-run on model upgrades.
 - **Harness drift:** the agent harness (Claude Code version, subagent vs top-level
-  session) affects results; the same model and prompt went from 1/5 to 9/10 on Boot 4.0.6
-  across a harness change. Cross-time comparisons confound model and harness.
+  session) affects results; the same model and prompt went from 1/5 (July, Claude Code
+  2.1.197) to 8/10 as a subagent and 9/10 headless (October, 2.1.296) on Boot 4.0.6.
+  Cross-time comparisons confound model and harness.
 
 ## 10. Deliverables per cell
 

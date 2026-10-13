@@ -31,8 +31,8 @@ tests), with hooks for **efficiency** and **code quality**.
 > brand-new, equally-unfamiliar Spring Boot **4.0.6**. (Stage-1 answer: yes — 86%
 > median on Tiko 0.2.2, then 100% on 0.5.0 and 0.6.0 across three model generations,
 > vs Boot-4's 0% on the same older models. Boot 4 is no longer a wall: the 5.5 models
-> scored 30/30 on 4.1.1 and 29/30 on 4.0.6, and Fable 5, rerun under the current harness,
-> 9/10 on 4.0.6.)
+> scored 30/30 on 4.1.1 and 29/30 on 4.0.6, and Fable 5, rerun on the current Claude Code,
+> 17/20 on 4.0.6.)
 
 ## Headline results — Stage 1
 
@@ -72,12 +72,12 @@ The 4.0.6 control (2026-10-13) shows the patch release isn't the difference: on 
 interfaces, which is unrelated to Boot 4. Both fixture sets gave the same scores.
 
 **But it isn't cleanly a model-generation effect.** Fable 5, the model that scored 1/5 on
-this scaffold in July, was rerun with the identical prompt and scaffold and went **9/10**
-(seven added the Kafka starter, two wired Kafka by hand). The model ID is the same; what
-changed is the harness (a headless session instead of a subagent) and the Claude Code
-version (2.1.197 → 2.1.296). So the July results measured the models *under that
-harness*, and part of the 1/20 → 29/30 jump may be the harness. Details:
-[`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
+this scaffold in July, was rerun with the identical prompt and scaffold: **8/10** as a
+subagent, as in July, and **9/10** as a top-level session. The model ID and the subagent
+setup are the same as in July; what changed is the Claude Code version (2.1.197 → 2.1.296)
+and the session around it. So the July results measured the models *under the July
+harness*, and part of the 1/20 → 29/30 jump may be the harness rather than the models.
+Details: [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
@@ -313,10 +313,11 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Spring Boot 4.0.6 control on the 5.5 models (2026-10-13): 29/30 on v1 and v2, every
       build added `spring-boot-starter-kafka`, so the 4.0.6 → 4.1.1 change isn't the
       difference. Cost and calls match 4.1.1.
-- [x] Fable 5 on the 4.0.6 control (2026-10-13, headless CLI): 9/10 against July's 1/5
-      with the same prompt; the harness or Claude Code version, not the model, changed.
-- [ ] Fable 5 as a subagent on the current Claude Code, to separate the harness from the
-      Claude Code version
+- [x] Fable 5 on the 4.0.6 control (2026-10-13): 9/10 headless and 8/10 as a subagent,
+      against July's 1/5 with the same prompt, so the subagent form isn't the cause.
+      Cost $2.14 and $2.24 per build (exact).
+- [ ] Fable 5 on Claude Code 2.1.197, to test whether the Claude Code version alone
+      explains July's 1/5
 - [ ] Run with non-Claude agents
 - [ ] Capture efficiency + code-quality rubric; n=10
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
