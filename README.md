@@ -128,6 +128,15 @@ on a framework it was never trained on, and cheaper models lose almost nothing: 
 input-side cost per build is $0.95 for Opus 5.5, $0.33 for Sonnet 5.5 and $0.05 for
 Haiku 5.5.
 
+**Tiko's MCP server doesn't change the result (2026-10-15).** With the scaffold's
+`tiko-mcp` topology server attached and the protocol's "use it to validate" instruction,
+gpt-6-luna, Haiku 5.5 and gpt-6.1-sol scored 10/10, 10/10 (8/10 v2) and 10/10. Without
+MCP they scored 9/10, 8/10 (7/10 v2, same headless harness) and 10/10, and no difference
+is significant. The agents barely used the server: only 5 of 30 trials called it (Haiku
+none), and the rest validated against Tiko's generated topology files. The instruction
+mainly added effort: Sol used 6× the input tokens and twice the output. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "Tiko 0.6.0 with the MCP topology server".
+
 **Both current releases on the current models:** every model now builds the service on
 Spring Boot 4.1.1 and on Tiko 0.6.0. On the stricter v2 fixtures Spring went 30/30 and
 Tiko 33/35, and a Spring build costs about half as much, because it takes 1.7–1.9× fewer
@@ -358,6 +367,9 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       4.0.6 control, 10/10 on v1 and v2, per-trial Maven repositories
 - [x] OpenAI lineup on all three current cells (2026-10-13/15): gpt-6-astra and gpt-6.1-sol
       10/10 everywhere; gpt-6-luna 2/10, 2/10 on Boot 4.1.1/4.0.6 and 9/10 on Tiko 0.6.0
+- [x] Tiko 0.6.0 with the MCP topology server (2026-10-15): no significant change for
+      gpt-6-luna, Haiku 5.5 or gpt-6.1-sol; only 5 of 30 trials called the server
+- [ ] Optional: an MCP arm that requires the tools, to test whether MCP helps when used
 - [ ] Other vendors' agents (e.g. Gemini), and OpenAI models on the older cells
 - [ ] Make `RUNNING.md`'s contestant prompt match the one the 2026-10 cells used (no app
       run, keep the parent version, named toolchain); an outside run used the old one

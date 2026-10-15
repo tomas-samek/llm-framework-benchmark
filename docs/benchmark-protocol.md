@@ -170,6 +170,13 @@ CLI 0.162.1 (`spring-406`, 2026-10-13; flags in `results/RESULTS.md`). On Window
 Codex needs its elevated sandbox, and the Codex desktop app must be closed while trials
 run.
 
+For the Tiko MCP arm, don't launch the server through jbang when trials run in
+parallel: jbang's Windows launcher fails on concurrent starts. Start the jar it resolves
+(`tiko-mcp-0.6.0.jar`, main class `io.tiko.mcp.TikoMcpServer`, trial directory as the
+argument) with `java` directly, and check that every session connected before grading.
+A Claude contestant needs a headless session to get its own server, so pair it with a
+headless no-MCP control.
+
 On a subscription plan, pace batches by the plan's usage limits. A trial cut off by the
 limit is invalid: archive it and rerun it from a fresh scaffold. Check the limit
 between small groups of trials. The frontier model on Tiko can use up a 5-hour window

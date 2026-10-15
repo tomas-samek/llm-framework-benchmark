@@ -97,4 +97,15 @@ per model per cell. v1 and v2 gave identical scores in all nine cells:
 
 Luna's Spring failures are startup failures, mostly the missing `KafkaTemplate` bean, so
 they scored 0/7 on both. Its one Tiko failure published nothing on either version.
+
+## Tiko 0.6.0 with the MCP server (2026-10-15)
+
+`tiko-060-mcp` (MCP server attached) and `tiko-060-ctl` (headless Haiku, no MCP), 10 trials
+each:
+- **luna and sol with MCP:** 10/10 on both versions.
+- **Haiku with MCP:** 10/10 on v1, 8/10 on v2.
+- **Haiku control:** 8/10 on v1, 7/10 on v2.
+
+Every v2-only miss is AC5 (the malformed-message stall). The control's two v1 misses are
+AC6 buyB (stale price).
 Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

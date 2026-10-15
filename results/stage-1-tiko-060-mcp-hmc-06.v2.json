@@ -1,0 +1,41 @@
+{
+  "compliance" : 0.8571428571428571,
+  "passed" : 6,
+  "total" : 7,
+  "results" : [ {
+    "scenario" : "AC1",
+    "key" : "buy1",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC2",
+    "key" : "buy2",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC3",
+    "key" : "buy3",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC4",
+    "key" : "buy4",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyA",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyB",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC5",
+    "key" : "buy5",
+    "passed" : false,
+    "detail" : "expected {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p5\",\"productName\":\"Wrist Rest\",\"priceCents\":1299,\"currency\":\"USD\",\"quantity\":1,\"totalCents\":1299,\"occurredAt\":\"2026-06-07T10:19:00Z\"} but got {\"purchaseId\":\"buy5\",\"userId\":\"u1\",\"userName\":\"Alice\",\"productId\":\"p5\",\"productName\":\"Wrist Rest\",\"priceCents\":null,\"currency\":null,\"quantity\":1,\"totalCents\":null,\"occurredAt\":\"2026-06-07T10:19:00Z\"}"
+  } ]
+}

@@ -1114,6 +1114,94 @@ checked by hand.
 5. **The desktop app was closed throughout.** The Codex desktop app breaks the sandbox
    setup while it runs.
 
+### 🆕 Tiko 0.6.0 with the MCP topology server (2026-10-15): no change, because agents don't use it
+
+Tiko's scaffold ships a `.mcp.json` for `tiko-mcp`, a server that answers questions about
+the compiled wiring through 13 tools (`list_wiring_errors`, `explain_wiring`,
+`topology_overview`, `trace_event_flow`, …). On Tiko 0.2.2 the MCP arm gave no lift. This
+round repeats it on 0.6.0.
+
+**Models.** The two models that slipped on Tiko 0.6.0 without MCP (gpt-6-luna 9/10,
+Haiku 5.5 13/15 on v2), plus gpt-6.1-sol as an effort check on a model already at 10/10.
+N=10 each, graded on v1 and v2.
+
+**Prompt.** The `tiko-060` prompt with one line swapped. "Do NOT use any MCP server…"
+becomes the protocol's MCP-arm instruction (`RUNNING.md`): "The project ships a
+`.mcp.json` topology server: use it (or `target/classes/META-INF/tiko/*.json`) to validate
+your wiring and config before finishing." Cell: `tiko-060-mcp`.
+
+**Harness.**
+- **OpenAI models:** Codex, as before. The server is passed as a config override pointed
+  at the trial directory (Codex doesn't read `.mcp.json`), with its tools pre-approved.
+- **Haiku:** a headless top-level `claude -p` session with `--mcp-config` and
+  `--allowedTools mcp__tiko`, since a sub-agent can't get its own per-trial server. Its
+  no-MCP sub-agent results therefore aren't a clean baseline, so a **headless no-MCP
+  control** ran in the same harness (`tiko-060-ctl`, unchanged prompt).
+- **Maven:** every trial had its own Maven repository.
+
+| Model | No MCP | With MCP server | Trials that called MCP |
+|---|---|---|---|
+| gpt-6-luna | 9/10 v1, 9/10 v2 (`tiko-060`) | **10/10 v1, 10/10 v2** | 2 of 10 (5 and 7 calls) |
+| Haiku 5.5, headless | 8/10 v1, 7/10 v2 (`tiko-060-ctl`) | **10/10 v1, 8/10 v2** | 0 of 10 |
+| gpt-6.1-sol | 10/10 v1, 10/10 v2 (`tiko-060`) | **10/10 v1, 10/10 v2** | 3 of 10 (4, 8 and 11 calls) |
+
+**No difference is significant**: Luna p = 1.0; Haiku p = 0.47 on v1 and 1.0 on v2.
+- **All failures are the familiar Tiko ones**, in both arms:
+  - **AC5 on v2** (price missing after the malformed-message stall, tiko-di#549): 2 MCP
+    trials and 3 control trials.
+  - **AC6 buyB on v1** (stale price, 7999 instead of 8999): 2 control trials.
+- **The server can't explain the small gaps.** Haiku never called it, and the trials that
+  did call it (5 of 30) were passing either way.
+- **The headless Haiku control** scored lower on v1 than the original sub-agent cell (8/10
+  against 15/15, p = 0.15). That is another harness effect within noise, and it is why
+  the comparison uses the control.
+
+**The agents don't reach for the server.** Every Haiku session connected (logged in
+about 2 s, with all 13 tools listed), and none used it. The models validated with what
+they already use: the build output and the generated `META-INF/tiko/*.json` topology
+files, which the instruction explicitly allows.
+
+**The MCP prompt costs more effort, not compliance.** Medians per build:
+
+| Model | Arm | Input | Output | Tool calls | Time |
+|---|---|---|---|---|---|
+| gpt-6.1-sol | no MCP | 0.60M | 9.2K | 18 | 368 s |
+| gpt-6.1-sol | MCP prompt | **3.73M** | **18.6K** | 28 | 1,132 s |
+| gpt-6-luna | no MCP | 0.42M | 5.6K | 11 | 135 s |
+| gpt-6-luna | MCP prompt | 0.61M | 7.0K | 14.5 | 131 s |
+| Haiku 5.5 (headless) | no MCP | — | 39.1K | 40.5 | $0.050 |
+| Haiku 5.5 (headless) | MCP prompt | — | 42.6K | 45 | $0.073 |
+
+For Sol the batch totals are 36.7M input and 194K output, against 6.0M and 92K without
+MCP. Its build times are inflated by a memory squeeze during the batch (see below); the
+token counts are not. The extra effort comes from the instruction to validate, not from
+the server itself: 27 of 30 Sol and Luna trials never called it.
+
+**One limitation of the server.** It reads topology only from `target/classes`. sol-06
+moved Maven's build directory to `build/` and had to copy the generated files back into
+`target/classes/META-INF/tiko/` before the server could see them.
+
+**Run notes.**
+1. **The first attempt is invalid and archived.** The scaffold's `.mcp.json` starts the
+   server through jbang, and jbang's Windows launcher fails when two instances start at
+   once ("file in use by another process"). In 10-trial batches almost no server came
+   up: 9 of 10 Haiku sessions were told the server failed to connect, and a 10-session
+   Codex probe got no tools at all.
+2. **The fix.** The rerun starts the same jar that jbang resolves, directly with `java
+   -cp tiko-mcp-0.6.0.jar io.tiko.mcp.TikoMcpServer <trial>`. A 10-parallel probe
+   connected in every session before any trial ran.
+3. **Memory.** The host ran low during the Sol batch, and Claude Code stopped the
+   launcher script. The trial processes themselves kept running and finished normally,
+   and all 10 completed with exit 0.
+4. **Isolation.** No trial started the app or used a subagent. The automated flags were
+   file writes whose contents mention `exec:java` or `docker`, and Kafka URLs inside
+   file contents; each was checked by hand. Outside their own directory and Maven
+   repository, trials touched only the toolchain, two reads of their own session's
+   tool-output files (hmc-06, hct-10), and the shared Maven cache (next note).
+5. **Reading the shared cache.** Several Haiku trials and one Luna trial listed the shared
+   `~/.m2` to find Tiko's jars. That is allowed: the prompt points to the dependency jars,
+   and Tiko has no equivalent of the Boot 4 starter leak. Both Haiku arms did it.
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2
