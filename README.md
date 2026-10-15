@@ -85,13 +85,26 @@ results measured the models *under the July setup*, and part of the 1/20 → 29/
 may be that setup rather than the models. Details:
 [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
-**First non-Claude model: OpenAI's gpt-6-astra went 10/10** on the 4.0.6 scaffold, on both
-fixture sets. It ran through Codex CLI 0.162.1 at medium reasoning, with the same prompt
-and isolation as the Claude cells and its own Maven repository per trial. Every build
-added `spring-boot-starter-kafka` and none looked at the shared cache. The builds were
-quick: a median 194 s, 6 tool calls and 4.8K output tokens each. Cost isn't recorded,
-since no gpt-6-astra prices were available. Details:
-[`results/RESULTS.md`](results/RESULTS.md) → "gpt-6-astra on the 4.0.6 control".
+**OpenAI's models (2026-10-13/15).** Three OpenAI models were run through Codex CLI
+0.162.1 at medium reasoning. They got the same prompts and isolation as the Claude cells,
+plus their own Maven repository per trial. N=10 per cell, and v1 and v2 scores were
+identical in every cell:
+
+| Model | Boot 4.1.1 | Boot 4.0.6 | Tiko 0.6.0 |
+|---|---|---|---|
+| gpt-6-astra (frontier) | **10/10** | **10/10** | **10/10** |
+| gpt-6.1-sol (workhorse) | **10/10** | **10/10** | **10/10** |
+| gpt-6-luna (fast) | **2/10** | **2/10** | **9/10** |
+
+The frontier and workhorse models clear every cell. The fast model shows this benchmark's
+core effect on another vendor: Luna went 4/20 on Spring Boot 4 and 9/10 on Tiko (p =
+0.0004). Most of its Spring failures (13 of 16) are the July mistake: plain
+`spring-kafka` and no `KafkaTemplate` bean. Two more needed a Jackson 2 `ObjectMapper`
+that Boot 4 no longer provides. On Tiko, the in-repo docs carried it. Tiko builds took
+about twice the tool calls of Spring builds for astra and Sol, as with the Claude models.
+Cost isn't recorded: the runs used a ChatGPT Plus plan. Details:
+[`results/RESULTS.md`](results/RESULTS.md) → "Three OpenAI models on all three current
+cells".
 
 On the other axis — an out-of-training-corpus framework that ships in-repo agent docs,
 on the current release with the current model generation:
@@ -340,7 +353,9 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [ ] Per-trial `-Dmaven.repo.local` for all future cells
 - [x] First non-Claude agent (2026-10-13): gpt-6-astra via Codex CLI 0.162.1 on the
       4.0.6 control, 10/10 on v1 and v2, per-trial Maven repositories
-- [ ] More non-Claude agents and cells (Tiko 0.6.0, Boot 4.1.1)
+- [x] OpenAI lineup on all three current cells (2026-10-13/15): gpt-6-astra and gpt-6.1-sol
+      10/10 everywhere; gpt-6-luna 2/10, 2/10 on Boot 4.1.1/4.0.6 and 9/10 on Tiko 0.6.0
+- [ ] Other vendors' agents (e.g. Gemini), and OpenAI models on the older cells
 - [ ] Make `RUNNING.md`'s contestant prompt match the one the 2026-10 cells used (no app
       run, keep the parent version, named toolchain); an outside run used the old one
 - [ ] Capture efficiency + code-quality rubric; n=10

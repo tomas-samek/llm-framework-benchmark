@@ -87,4 +87,14 @@ Fable 5, added to the cell three times, scored 9/10 headless, 8/10 as a subagent
 as a subagent on Claude Code 2.1.197, the same on both versions. Its failures (f5-10,
 f5s-01, f5s-05, f5o-05) are the classic missing `KafkaTemplate` bean, so they scored 0/7
 on both. gpt-6-astra (Codex CLI, `ast-01..10`) scored 10/10 on both versions.
+
+## OpenAI models on the current cells (2026-10-13/15)
+
+gpt-6-astra (`ast`), gpt-6.1-sol (`sol`) and gpt-6-luna (`lun`) via Codex CLI, 10 trials
+per model per cell. v1 and v2 gave identical scores in all nine cells:
+- **astra and sol:** 10/10 on `spring-411`, `spring-406` and `tiko-060`.
+- **luna:** 2/10 on `spring-411`, 2/10 on `spring-406`, 9/10 on `tiko-060`.
+
+Luna's Spring failures are startup failures, mostly the missing `KafkaTemplate` bean, so
+they scored 0/7 on both. Its one Tiko failure published nothing on either version.
 Details: `results/RESULTS.md` → "Spring Boot 4.0.6 control on the 5.5 models".

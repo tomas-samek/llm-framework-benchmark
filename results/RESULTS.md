@@ -966,6 +966,126 @@ N=10, it is consistent with the 5.5 models and not distinguishable from them. Th
 outside run's 5/5 agrees, so the prompt differences didn't change the outcome for this
 model.
 
+### 🆕 Three OpenAI models on all three current cells (2026-10-13/15)
+
+The astra cell above was extended to OpenAI's current lineup on every cell the Claude 5.5
+models ran. Each model maps to a Claude tier:
+
+| Tier | OpenAI | Claude counterpart |
+|---|---|---|
+| Frontier | **gpt-6-astra** | Opus 5.5 |
+| Workhorse (the latest Sol; gpt-6-sol is the previous one) | **gpt-6.1-sol** | Sonnet 5.5 |
+| Fast | **gpt-6-luna** | Haiku 5.5 |
+
+**Setup.** Same harness as the astra cell above:
+- Codex CLI 0.162.1, medium reasoning, the elevated Windows sandbox.
+- Plugins, apps and subagents off; a fresh scaffold outside the repo per trial.
+- Each trial's own empty Maven repository.
+
+The prompts are the Claude cells' prompts byte for byte (trial path changed only), taken
+from the `o55-01` transcripts of `spring-411` and `tiko-060`. The two Spring prompts are
+the same text. Tiko 0.6.0 ships both `CLAUDE.md` (242 lines) and a 35-line `AGENTS.md`
+that points to `.ai-skills/`. Codex loads `AGENTS.md` on its own, and the prompt names
+`CLAUDE.md`. All 30 OpenAI Tiko trials read `CLAUDE.md` and `.ai-skills` with shell commands. Four
+also opened `AGENTS.md` that way (three astra, one Luna); Codex also loads it into context
+on its own. Prefixes: `ast`, `sol`, `lun`. N=10 per model per cell, graded on v1
+and v2, with a fresh broker and a snapshot restore per trial.
+
+| Model | Boot 4.1.1 | Boot 4.0.6 | Tiko 0.6.0 |
+|---|---|---|---|
+| gpt-6-astra | **10/10** | **10/10** | **10/10** |
+| gpt-6.1-sol | **10/10** | **10/10** | **10/10** |
+| gpt-6-luna | **2/10** | **2/10** | **9/10** |
+| *Claude 5.5, for reference* | *30/30 (27/30 lower bound)* | *29/30 (27/30)* | *35/35 v1, 33/35 v2* |
+
+v1 and v2 gave identical scores in every OpenAI cell.
+
+**The fast model reproduces the July Boot 4 failure, and Tiko doesn't.** gpt-6-luna
+went 4/20 on Spring Boot 4 and 9/10 on Tiko (Fisher p = 0.0004).
+- **On Spring, it mostly used plain `spring-kafka`.** Only 1 of 10 (4.0.6) and 2 of 10
+  (4.1.1) builds added `spring-boot-starter-kafka`.
+- **16 Spring builds failed for these reasons:**
+  - **13: no `KafkaTemplate` bean at startup.** That is the classic July failure: plain
+    `spring-kafka`, which Boot 4 no longer auto-configures.
+  - **2: no Jackson 2 `ObjectMapper` bean.** Boot 4 auto-configures Jackson 3 instead,
+    which is another Boot 4 change.
+  - **1: lun-04 on 4.0.6** started and subscribed but published nothing.
+- **The four passes:**
+  - 4.0.6 lun-02 and lun-06 set Kafka up by hand (`@EnableKafka` plus explicit factory
+    and template beans) on plain `spring-kafka`.
+  - 4.1.1 lun-04 and lun-05 added the starter.
+- **The one Tiko failure** (lun-10) started, consumed and handled the malformed record,
+  then published nothing, which is an application-logic bug.
+- **Against Haiku 5.5**, which went 10/10 on 4.0.6, Luna's 2/10 differs at p = 0.0007,
+  and at p = 0.02 against Haiku's cache lower bound.
+
+That is this benchmark's central finding, version-recency friction on Spring against
+in-repo affordances on Tiko, reproduced on another vendor's smallest model.
+
+**The frontier and workhorse models clear everything.** All 60 astra and Sol builds
+passed.
+- **Spring:** every astra and Sol build added `spring-boot-starter-kafka` and used Jackson
+  3, so the Boot 4 module split is known to both.
+- **Tiko:** both went 10/10 with no failures. On v2 that is cleaner than the 5.5 models'
+  33/35.
+
+**Effort per build** (medians; Codex reports per-session totals, so these are exact):
+
+| Model | Cell | Output tokens | Tool calls | Generation time | Uncached input |
+|---|---|---|---|---|---|
+| gpt-6-astra | Boot 4.1.1 | 5.6K | 6.5 | 234 s | 32K |
+| gpt-6-astra | Boot 4.0.6 | 4.8K | 6.0 | 194 s | 33K |
+| gpt-6-astra | Tiko 0.6.0 | 6.0K | 15.0 | 238 s | 46K |
+| gpt-6.1-sol | Boot 4.1.1 | 6.4K | 8.0 | 288 s | 38K |
+| gpt-6.1-sol | Boot 4.0.6 | 6.3K | 7.5 | 257 s | 39K |
+| gpt-6.1-sol | Tiko 0.6.0 | 9.2K | 18.0 | 368 s | 57K |
+| gpt-6-luna | Boot 4.1.1 | 4.8K | 12.0 | 144 s | 44K |
+| gpt-6-luna | Boot 4.0.6 | 4.5K | 10.5 | 164 s | 33K |
+| gpt-6-luna | Tiko 0.6.0 | 5.6K | 11.0 | 134 s | 40K |
+
+Tiko builds take about 2.3× the tool calls of Spring builds for astra and Sol, which
+matches the Claude cells' 1.7–1.9× more API calls. Luna works about as long on Spring as
+on Tiko and stops sooner on Spring with a wrong setup. No cost is recorded: the runs used
+a ChatGPT Plus plan, and API prices for these models weren't available. On that plan
+the cost showed up as usage-limit consumption instead. Per trial, as a share of the
+5-hour window and the weekly limit:
+
+| Model | Spring | Tiko |
+|---|---|---|
+| gpt-6-astra | ~7% / ~1.1% | ~12–16% / ~2% |
+| gpt-6.1-sol | ~2% / ~0.35% | ~3.5% / ~0.7% |
+| gpt-6-luna | ~0.15% / ~0.05% | similar |
+
+**Checks** (all 90 OpenAI trials, including the first astra cell):
+- every session ran the requested model and received the prompt byte for byte;
+- every build kept its framework version (Boot parent or `tiko.version`) and produced a
+  jar;
+- no trial started the app or used a subagent;
+- none touched the shared `~/.m2` (several Tiko trials made a Maven repository inside
+  their own directory);
+- none touched a path outside its directory, its Maven repository and the toolchain.
+
+The automated checks also flagged some "app runs" and outside paths. Those were writes of
+`docker-compose.yml` and README files, and Kafka URLs inside file contents; each was
+checked by hand.
+
+**Run notes.**
+1. **Usage limit, astra on Tiko.** Ten astra Tiko builds launched together exhausted the
+   5-hour window within minutes, and 8 were cut off ("You've hit your usage limit"). A
+   later rerun lost one more (ast-04) the same way. The 9 cut-off builds were archived
+   and rerun from fresh scaffolds in later windows, two at a time with a limit check
+   between pairs. ast-01 and ast-06 of the first launch had completed normally and were
+   kept.
+2. **Memory pressure.** The host ran low on memory, and Claude Code stopped the Sol 4.0.6
+   grading after the v2 pass of trial 05. Trials 06–10 were later restored from the batch
+   snapshot and graded on v2 alone (`grade-codex-resume.ps1`); nothing was half-written.
+3. **Transient errors.** sol-02 and sol-04 on 4.1.1 hit 503/429 errors and retried,
+   then completed normally.
+4. **Builds and grading never overlapped**, so grading timing isn't affected by build
+   load.
+5. **The desktop app was closed throughout.** The Codex desktop app breaks the sandbox
+   setup while it runs.
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2

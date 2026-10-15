@@ -170,6 +170,12 @@ CLI 0.162.1 (`spring-406`, 2026-10-13; flags in `results/RESULTS.md`). On Window
 Codex needs its elevated sandbox, and the Codex desktop app must be closed while trials
 run.
 
+On a subscription plan, pace batches by the plan's usage limits. A trial cut off by the
+limit is invalid: archive it and rerun it from a fresh scaffold. Check the limit
+between small groups of trials. The frontier model on Tiko can use up a 5-hour window
+in one batch of 10. Don't build and grade at the same time, since build load can slow
+the graded apps' startup.
+
 ## 6. As-shipped guidance
 
 Tiko runs keep the archetype's bundled agent guidance (`CLAUDE.md`, `.ai-skills/`)
