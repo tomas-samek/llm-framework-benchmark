@@ -239,11 +239,17 @@ transcript. Recorded both **to first 100%-compliance** and **to agent-declared
 done** (captures over-polishing).
 
 ### 8.3 Code quality (post-hoc, blinded rubric)
-Independent review against a fixed rubric (idiomaticity, structure/cohesion,
-defect count, test quality, error handling). If an LLM judge is used, run >=3
-independent judges and take the median. Framework is identifiable from imports;
-rely on the rubric to keep scoring consistent. Reviews stored in
-`results/reviews/`.
+Independent review against the fixed rubric in `results/reviews/RUBRIC.md`, which
+scores six dimensions 1–5 with anchored levels and spec-specific checks: idiomaticity,
+structure/cohesion, defect risk, error handling, run surface (the §7 requirements the
+oracle doesn't check), and test quality. The core total is the first five; test quality
+is reported separately, since the contestant prompt doesn't ask for tests. Judges see
+only the blinded source tree. Run >=3 independent judges, from at least two vendors,
+with the prompt in `results/reviews/JUDGE.md`, and take the median per dimension.
+Measured signals from `conformance/quality/code_metrics.py` are recorded beside the
+scores. Framework is identifiable from imports; rely on the rubric to keep scoring
+consistent. Reviews are stored in `results/reviews/`, one row per trial in
+`results/code-quality.csv`.
 
 ## 9. Threats to validity (acknowledged)
 

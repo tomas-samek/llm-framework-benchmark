@@ -360,9 +360,8 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Maven cache check (2026-10-13): five 5.5 trials and one Fable 5 trial read the
       Kafka module name from a listing of the shared `~/.m2`; lower bounds 27/30 on both
       5.5 Spring cells. No July trial did.
-- [ ] Fable 5 with the July session context restored (user settings, plugins, CLAUDE.md,
-      trials inside the repo), the remaining candidate for July's 1/5
-- [ ] Per-trial `-Dmaven.repo.local` for all future cells
+- [x] Per-trial `-Dmaven.repo.local`: used for every cell since 2026-10-13 and required by
+      the protocol
 - [x] First non-Claude agent (2026-10-13): gpt-6-astra via Codex CLI 0.162.1 on the
       4.0.6 control, 10/10 on v1 and v2, per-trial Maven repositories
 - [x] OpenAI lineup on all three current cells (2026-10-13/15): gpt-6-astra and gpt-6.1-sol
@@ -371,12 +370,19 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       gpt-6-luna, Haiku 5.5 or gpt-6.1-sol; only 5 of 30 trials called the server
 - [ ] Optional: an MCP arm that requires the tools, to test whether MCP helps when used
 - [ ] Other vendors' agents (e.g. Gemini), and OpenAI models on the older cells
-- [ ] Make `RUNNING.md`'s contestant prompt match the one the 2026-10 cells used (no app
-      run, keep the parent version, named toolchain); an outside run used the old one
-- [ ] Capture efficiency + code-quality rubric; n=10
+- [x] `RUNNING.md` carries the exact 2026-10 contestant prompts (Spring, Tiko, Tiko MCP
+      arm), checked byte for byte against the trials; the earlier prompt is kept as a
+      dated note
+- [x] Code-quality rubric (2026-10-15): six anchored dimensions with spec-specific checks
+      (`results/reviews/RUBRIC.md`), a blinded judge prompt (`results/reviews/JUDGE.md`)
+      and a measured-signals script (`conformance/quality/code_metrics.py`)
+- [ ] Score the 2026-10 cells with the rubric (3 judges per trial, median), starting with
+      the passing trials of `spring-411`, `spring-406` and `tiko-060`
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
       held-out acceptance set to detect gate overfitting
 - [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)
+- [ ] Optional, last: Fable 5 with the July session context restored (user settings,
+      plugins, CLAUDE.md, trials inside the repo), the remaining candidate for July's 1/5
 
 ## License
 
