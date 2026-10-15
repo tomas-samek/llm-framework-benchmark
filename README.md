@@ -102,7 +102,10 @@ core effect on another vendor: Luna went 4/20 on Spring Boot 4 and 9/10 on Tiko 
 `spring-kafka` and no `KafkaTemplate` bean. Two more needed a Jackson 2 `ObjectMapper`
 that Boot 4 no longer provides. On Tiko, the in-repo docs carried it. Tiko builds took
 about twice the tool calls of Spring builds for astra and Sol, as with the Claude models.
-Cost isn't recorded: the runs used a ChatGPT Plus plan. Details:
+Their cost is measured in tokens rather than dollars, since the runs used a ChatGPT Plus
+plan. The 90 trials used 30.8M input tokens (88% cached) and 550K output tokens: about
+340K in and 6K out per build. Per-trial counts are in
+[`results/openai-tokens.csv`](results/openai-tokens.csv). Details:
 [`results/RESULTS.md`](results/RESULTS.md) → "Three OpenAI models on all three current
 cells".
 

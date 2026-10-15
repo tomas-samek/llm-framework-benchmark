@@ -1045,10 +1045,38 @@ passed.
 
 Tiko builds take about 2.3× the tool calls of Spring builds for astra and Sol, which
 matches the Claude cells' 1.7–1.9× more API calls. Luna works about as long on Spring as
-on Tiko and stops sooner on Spring with a wrong setup. No cost is recorded: the runs used
-a ChatGPT Plus plan, and API prices for these models weren't available. On that plan
-the cost showed up as usage-limit consumption instead. Per trial, as a share of the
-5-hour window and the weekly limit:
+on Tiko and stops sooner on Spring with a wrong setup.
+
+**Tokens, the cost measure for these cells.** The OpenAI cells are measured in tokens,
+not dollars: the runs used a ChatGPT Plus plan. The totals are exact, from Codex's
+per-session usage. Per-trial rows, with tool calls and generation time, are in
+`results/openai-tokens.csv`. Input includes cached input, and output includes reasoning.
+
+| Model | Cell (10 trials) | Input | of which cached | Output | of which reasoning |
+|---|---|---|---|---|---|
+| gpt-6-astra | Boot 4.1.1 | 2.35M | 2.00M | 62K | 4K |
+| gpt-6-astra | Boot 4.0.6 | 1.80M | 1.49M | 50K | 3K |
+| gpt-6-astra | Tiko 0.6.0 | 4.75M | 4.27M | 67K | 4K |
+| gpt-6.1-sol | Boot 4.1.1 | 2.18M | 1.81M | 65K | 8K |
+| gpt-6.1-sol | Boot 4.0.6 | 2.41M | 2.00M | 64K | 7K |
+| gpt-6.1-sol | Tiko 0.6.0 | 6.02M | 5.43M | 92K | 9K |
+| gpt-6-luna | Boot 4.1.1 | 3.91M | 3.47M | 48K | 7K |
+| gpt-6-luna | Boot 4.0.6 | 3.22M | 2.85M | 47K | 6K |
+| gpt-6-luna | Tiko 0.6.0 | 4.15M | 3.71M | 55K | 7K |
+| **All 90 graded trials** | | **30.8M** | **27.0M (88%)** | **550K** | **55K** |
+
+- **Per build:** about 340K input tokens, 42K of them uncached, and 6K output tokens.
+  Fable 5 wrote about 20K output tokens per build on the same task.
+- **Tiko is the expensive cell.** Astra and Sol read 2–2.5× the input on Tiko that they
+  read on Spring.
+- **Luna read the most input of the three.** It takes more, smaller steps, even on
+  Spring, but writes the least.
+- **Overhead:** counting every Codex session from 2026-10-13 to 10-15, including the
+  usage-limit-cut runs and smoke tests, the total is 35.9M input (4.3M uncached) and 622K
+  output. About 5M of the input and 70K of the output are the cut-off astra Tiko builds.
+
+On the plan, the same work showed up as usage-limit consumption. Per trial, as a share of
+the 5-hour window and the weekly limit:
 
 | Model | Spring | Tiko |
 |---|---|---|
