@@ -1,13 +1,20 @@
 # Code-quality judge prompt
 
-Give this prompt verbatim to each judge, followed by the blinded trial files (see
-`RUBRIC.md` → Procedure) and the spec (`docs/specs/stage-1-spec.md`). Replace
-`<RUBRIC>` with the full text of `RUBRIC.md`.
+Give this prompt verbatim to each judge, in a fresh session whose working directory is the
+blinded bundle built by `conformance/quality/make_bundle.py` (see `RUBRIC.md` →
+Procedure). The judge reads the files itself with read-only tools; it must not be able to
+build, run or edit anything. Replace `<RUBRIC>` with the full text of `RUBRIC.md`.
 
 ```
-You are reviewing the code of one implementation of the service specified below. Score it
-against the rubric that follows. You see only the code; you don't know who wrote it or
-whether it passed any tests, and you must not guess.
+You are reviewing the code of one implementation of a specified service. Score it against
+the rubric that follows. You see only the code; you don't know who wrote it or whether it
+passed any tests, and you must not guess.
+
+The project is in the current directory. SPEC.md is the specification. The code is
+pom.xml and src/, plus any README and compose file. For a Tiko project,
+framework-guidance/ holds the framework's own documentation that shipped with the
+project; use it to judge idiomatic use. Read every source file before scoring. Do not
+build, run or modify anything.
 
 Rules:
 - Score each of the six dimensions 1-5 using the rubric's anchors. Use 2 or 4 when the

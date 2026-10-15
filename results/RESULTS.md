@@ -726,6 +726,21 @@ The two patch releases are indistinguishable on cost, calls and compliance, so t
 
 #### Fable 5 on the 4.0.6 control (2026-10-13): the July 1/5 doesn't reproduce, as a subagent or on July's Claude Code
 
+> **Not representative of the current Fable.** These runs answer one question: does the
+> July result for *Fable 5* reproduce under a different harness? They are not a
+> measurement of the Fable line today.
+> - **An older model.** Fable 5 is the previous Fable; the current one is Fable 5.1.
+> - **Mixed harnesses.** Its 30 October builds ran under three different harnesses, on
+>   purpose, and only on Boot 4.0.6.
+> - **No Tiko or Boot 4.1.1 runs**, so it has no cell to set beside the current models
+>   like for like.
+> - **Thin quality sample.** In the code-quality sample Fable has only 4 Boot 4.0.6 trials,
+>   one of them a hand-wired Kafka build forced in as a calibration case.
+>
+> Don't read Fable 5 against the 5.5 or OpenAI models as a generation comparison. Fable
+> 5.1 on the three current cells, with the same harness and scoring as the other models,
+> is the next run after the OpenAI code-quality scoring.
+
 Fable 5 scored 1/5 on this scaffold in July (`spring-fix`, "Multi-model extension").
 The Agent tool's `fable` alias now resolves to Fable 5.1, so the original model was run
 as a **headless session**:

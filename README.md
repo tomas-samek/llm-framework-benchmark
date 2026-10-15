@@ -85,6 +85,12 @@ results measured the models *under the July setup*, and part of the 1/20 → 29/
 may be that setup rather than the models. Details:
 [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5 on the 4.0.6 control".
 
+> **These Fable runs don't represent the current Fable.** Fable 5 is the previous model
+> (the current one is Fable 5.1). Its October builds were a harness experiment on Boot
+> 4.0.6 only, under three different harnesses. Don't compare them with the 5.5 or OpenAI
+> models as a generation benchmark. Fable 5.1 on all three current cells is next on the
+> roadmap.
+
 **OpenAI's models (2026-10-13/15).** Three OpenAI models were run through Codex CLI
 0.162.1 at medium reasoning. They got the same prompts and isolation as the Claude cells,
 plus their own Maven repository per trial. N=10 per cell, and v1 and v2 scores were
@@ -376,8 +382,13 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Code-quality rubric (2026-10-15): six anchored dimensions with spec-specific checks
       (`results/reviews/RUBRIC.md`), a blinded judge prompt (`results/reviews/JUDGE.md`)
       and a measured-signals script (`conformance/quality/code_metrics.py`)
-- [ ] Score the 2026-10 cells with the rubric (3 judges per trial, median), starting with
-      the passing trials of `spring-411`, `spring-406` and `tiko-060`
+- [ ] Score the 2026-10 cells with the rubric (in progress: a 72-trial stratified sample of
+      `spring-411`, `spring-406` and `tiko-060` passes, judged by Opus 5.5, Sonnet 5.5 and
+      gpt-6-astra)
+- [ ] Next after that: **Fable 5.1**, the current Fable, on `spring-411`, `spring-406` and
+      `tiko-060` (10 trials each, sub-agent harness and per-trial Maven repositories, as
+      for the 5.5 models), with code-quality scoring. The October Fable 5 runs are a harness
+      experiment and don't represent the current Fable
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
       held-out acceptance set to detect gate overfitting
 - [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)

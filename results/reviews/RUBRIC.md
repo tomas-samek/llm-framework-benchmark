@@ -53,7 +53,7 @@ Problems the oracle may not catch. Check in particular:
   a correct find-then-save). A plain `INSERT` that fails on redelivery is a defect.
 - **Null path (§5):** unknown user, product or price gives null fields and
   `totalCents = null`, never an exception, a zero, or a dropped purchase. `totalCents`
-  is computed only when the price is known, without integer overflow on large values.
+  is computed only when the price is known, in a type wide enough for realistic totals.
 - **Exactly one notification per purchase, keyed by `purchaseId` (§5.3).** No
   duplicates from retries or from sending inside a loop.
 - **No blocking on reference data (§5):** no sleeps, polling or waiting for a reference
@@ -63,10 +63,24 @@ Problems the oracle may not catch. Check in particular:
 - **Resources:** connections and statements are closed (try-with-resources or a pool);
   the producer is flushed and closed on shutdown.
 
+**Rate severity by how reachable the defect is.** A defect counts as major when
+spec-conformant input or ordinary operation triggers it: redelivery, messages arriving on
+several topics at once, missing reference data, normal-sized values, a restart. A defect
+counts as minor when it needs pathological values (e.g. a price near `Long.MAX_VALUE`),
+input the spec doesn't describe, or an infrastructure failure such as the database being
+down. Minor defects never pull the score below 4 on their own; several of them make it 3.
+
+Two cases are settled in advance, so judges don't weigh them differently:
+- **Totals in a 32-bit `int`** overflow only above about 2.1 billion cents (21 million
+  currency units for one purchase). That is a minor defect. A `long` total, or a widened
+  multiplication, is correct.
+- **Problems confined to the sample-data publisher**, such as a publisher that starts the
+  whole application and its consumers, are scored under run surface, not here.
+
 | Score | Anchor |
 |---|---|
-| 1 | A clear bug or race that would break the spec under some input or timing. |
-| 3 | Minor issues only, e.g. an unclosed resource on an error path, or a non-atomic upsert that is safe at this load. |
+| 1 | A major defect that breaks the spec in normal operation, e.g. a plain `INSERT` failing on redelivery, a race that loses updates between topics, or two notifications per purchase. |
+| 3 | No major defect, but several minor ones, or one major defect confined to an unlikely timing. |
 | 5 | Nothing found after checking every item above. |
 
 ### 4. Error handling (§6)
