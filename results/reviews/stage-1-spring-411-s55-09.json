@@ -1,0 +1,118 @@
+{
+ "cell": "spring-411",
+ "model": "claude-sonnet-5-5",
+ "trial": "s55-09",
+ "judges": {
+  "opus": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "The project uses the first-party starters: spring-boot-starter-kafka, spring-boot-starter-jdbc and spring-boot-starter-json in pom.xml:43-55. Listeners are plain @KafkaListener methods in Handlers.java:37-61. Dependencies come in through the constructor (Handlers.java:31), and the code uses the Jackson 3 tools.jackson JsonMapper (Handlers.java:12). Configuration lives in application.properties with env placeholders, and the schema is created with spring.sql.init and schema.sql. There are two workarounds a Spring user would question. First, listeners take a raw String and deserialize by hand in parse() (Handlers.java:82-90), where typed listeners with ErrorHandlingDeserializer/JsonDeserializer would be the usual choice. Second, the hand-rolled run() try/catch wrapper (Handlers.java:92-99) does the job of the container's DefaultErrorHandler. Price and currency are also fetched with two separate queryForList calls instead of one row query with a RowMapper (Handlers.java:68-69)."
+   },
+   "structure": {
+    "score": 2,
+    "evidence": "Handlers.java is the only real class. It holds all five message records (lines 19-25), the four Kafka listeners, the SQL upserts and lookups inline in the listener bodies (lines 41, 49, 57, 66-69), the merge/total computation (lines 70-72) and publishing (line 73). There is no separate reference store, no separate merge function and no Kafka adapter. The merge logic sits inside a lambda that also calls JDBC and Kafka, so it can't be tested as a pure function. The code is short and has no duplication beyond the repeated parse/null-check/run pattern in each listener, but it is close to a single god class."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "No major defect found. There are a few minor issues. Price and currency are read in two separate non-transactional queries (Handlers.java:68-69), so a concurrent price-updates write between them could pair cents and currency from different updates; this needs an unlikely timing. kafka.send's returned future is ignored (Handlers.java:73), so asynchronous send failures are never observed or logged. Purchase.quantity is a primitive int (Handlers.java:22), so a purchase missing quantity silently becomes 0 instead of being rejected; the spec doesn't describe that input.",
+    "checks": {
+     "upsert": "Correct. H2 `MERGE INTO ... KEY (...) VALUES` is used for products, users and prices (Handlers.java:41, 49, 57) against PK tables in schema.sql, so redelivery is idempotent and the latest update wins.",
+     "null_path": "Correct. first() returns null on an empty result (Handlers.java:77-80). total is null when cents is null and otherwise uses Long arithmetic, cents * p.quantity() (Handlers.java:70), so it doesn't overflow. price_cents is BIGINT (schema.sql:3). Unknown references give null fields and the purchase is still emitted. Minor issue: price and currency come from two separate queries.",
+     "one_notification": "One kafka.send per purchase, keyed by purchaseId (Handlers.java:73), with no loop and no retry. A purchase with a null purchaseId is dropped (line 64), but the spec doesn't describe that input.",
+     "no_blocking": "No sleeps, polling or waits. Lookups are immediate, and missing rows become null.",
+     "concurrency": "JdbcTemplate over the pooled Hikari DataSource, KafkaTemplate and JsonMapper are all thread-safe. There is no in-memory cache. Each upsert is a single atomic MERGE. The only window is the non-atomic two-query price read (lines 68-69), which is minor.",
+     "resources": "Connections are managed by JdbcTemplate and the Hikari pool. The producer and consumers are managed by Spring Kafka, which closes them on context shutdown. Nothing is leaked by hand."
+    }
+   },
+   "error_handling": {
+    "score": 3,
+    "evidence": "Malformed JSON is caught in parse() (Handlers.java:82-90), logged at WARN and skipped at once with no retry loop, so a bad message doesn't stall its topic. Deserialization failures (WARN in parse) are kept apart from processing failures (ERROR with stack trace in run(), lines 92-99). The gaps: neither log line carries topic, partition, offset or key; the deserialization log gives only the type name and exception message. run() catches Exception broadly and swallows every processing failure, including DB errors, after logging. kafka.send failures are asynchronous and never observed (line 73), so a failed notification publish disappears without a log line."
+   },
+   "run_surface": {
+    "score": 1,
+    "evidence": "The main application exists (NotifyApplication.java) and shuts down cleanly through Spring context lifecycle. Configuration is properly externalized with defaults: KAFKA_BOOTSTRAP and H2_URL placeholders in application.properties:2 and :9. However, there is no sample-data publisher entry point anywhere in src/, and no docker-compose file in the project. Two required run-surface items are missing, which matches the rubric's score-1 anchor."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "The only test is the scaffold's NotifyApplicationTests.contextLoads() (src/test/java/eu/bench/notify/NotifyApplicationTests.java:9-11). Nothing tests the merge, the null path, poison messages or upserts."
+   }
+  },
+  "sonnet": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "The project uses spring-boot-starter-kafka, starter-jdbc and starter-json (pom.xml). It declares @KafkaListener methods in Handlers.java:37-61 and injects with a constructor. It uses Jackson 3 `tools.jackson.databind.json.JsonMapper`, KafkaTemplate and JdbcTemplate. Configuration is in application.properties, with schema.sql run through spring.sql.init. Weak spots: the listeners take raw String payloads and parse by hand in parse() instead of using Spring Kafka's JSON deserialization or an error-handling deserializer. The properties file also sets the String (de)serializers explicitly, which is redundant since they are the defaults. A Spring Kafka maintainer would probably reshape that error path."
+   },
+   "structure": {
+    "score": 2,
+    "evidence": "Handlers.java is a single @Component that holds all five message records, the four listeners, the SQL, the merge/notification building (onPurchase:61-75) and the JSON parsing. Merge logic is inline in the listener lambda and is not a pure function. There is no repository or store class, and the message types are nested records. The per-topic upsert code is repetitive. The class is small and readable, but it mixes the Kafka adapter, SQL and merge logic."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "There is no major defect. Minor issues: a DB failure inside run() drops the purchase after logging it, because the error is swallowed and the message is never retried. The kafka.send result is never checked, so an async send failure is silently lost. The user, product and price lookups are four separate queries that are not atomic, and the price is queried twice. A missing `quantity` deserializes as 0 rather than being treated as malformed.",
+    "checks": {
+     "upsert": "Pass. All three tables use `MERGE INTO ... KEY (...)` (Handlers.java:41, 49, 57), so redelivery is idempotent and the latest value wins.",
+     "null_path": "Pass. first() returns null for a missing row, and total is `cents == null ? null : cents * p.quantity()`. The Long type avoids overflow, and Notification fields are boxed or nullable. Unknown references produce nulls and the purchase is still emitted. A purchase with a null purchaseId is dropped (line 64), which the spec does not describe.",
+     "one_notification": "Pass. One kafka.send per purchase, keyed by purchaseId, with no loop. Redelivery after a crash is at-least-once, which the spec allows.",
+     "no_blocking": "Pass. There are no sleeps, polling or waits. Missing reference data goes straight down the null path.",
+     "concurrency": "Pass. Handlers holds only thread-safe shared objects: JdbcTemplate over the pooled DataSource, KafkaTemplate and JsonMapper. Each upsert is a single statement, so there are no lost updates across topics. The H2 file database serves several connections.",
+     "resources": "Pass. JdbcTemplate and the pool manage connections. Spring's KafkaTemplate flushes and closes the producer, and the listener containers stop, when the context shuts down. Nothing is managed by hand."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "parse() (Handlers.java:82-90) catches deserialization errors, logs a warn naming the type and message, and returns null, so the poison message is skipped immediately with no retry. run() (92-99) wraps processing, logs at error level with the stack trace, and keeps the listener alive. Deserialization failures and processing failures are logged separately. Gaps: the log lines carry no topic, partition, offset or key, and the broad `catch (Exception)` in run() swallows a failed processing attempt without any retry or visibility beyond the log. A null id is silently dropped with no log (lines 40, 48, 56, 64)."
+   },
+   "run_surface": {
+    "score": 1,
+    "evidence": "Only NotifyApplication exists as an entry point. There is no sample-data publisher class, no docker-compose file and no README, so two required items are missing. Configuration is well externalized: ${KAFKA_BOOTSTRAP:localhost:9092} and ${H2_URL:jdbc:h2:file:./data/notify;...} in application.properties. Spring Boot gives a clean shutdown by default. The score is capped by the missing publisher and compose file."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "The only test is the scaffold's NotifyApplicationTests.contextLoads(), an empty @SpringBootTest. It would also need a live broker to start. There are no tests for merge, the null path, the poison path or upsert."
+   }
+  },
+  "astra": {
+   "idiomaticity": {
+    "score": 5,
+    "evidence": "pom.xml:43-59 uses Spring Boot JSON, Kafka and JDBC starters. Handlers.java:12 uses Jackson 3; Handlers:31-34 uses constructor injection, and its four consumers use @KafkaListener. application.properties externalizes configuration, and schema.sql uses Boot's database initialization."
+   },
+   "structure": {
+    "score": 1,
+    "evidence": "Handlers owns message types, all four consumers, reference-store SQL, lookups, notification construction and publication (src/main/java/eu/bench/notify/Handlers.java:19-98). onPurchase mixes database access, merging, serialization and sending; there is no separate store or independently testable pure merge function."
+   },
+   "defect_risk": {
+    "score": 3,
+    "evidence": "Handlers.java:68-69 reads price and currency in separate queries, allowing a concurrent price update to produce a combination that never existed. This requires a narrow interleaving. Additionally, onPurchase ignores the asynchronous send result (line 73), so a publishing failure can lose a notification after processing returns.",
+    "checks": {
+     "upsert": "Correct: all three update handlers use MERGE with explicit primary keys (Handlers.java:41-58); schema.sql:1-3 declares those keys.",
+     "null_path": "Correct for missing references: first returns null for absent rows (Handlers.java:77-79), and onPurchase preserves nullable fields and calculates total only when cents is present (lines 66-72). Long multiplication supports realistic totals.",
+     "one_notification": "Exactly one send call per accepted purchase, keyed by purchaseId, with no loop or application retry (Handlers.java:61-74). Its asynchronous result is ignored, leaving delivery failures unhandled. Transactional exactly-once guarantees are explicitly outside SPEC.md:133.",
+     "no_blocking": "No sleeping, polling or waiting for reference rows: onPurchase performs immediate lookups and sends the resulting notification (Handlers.java:66-73).",
+     "concurrency": "Injected templates and the unmodified mapper avoid shared mutable per-message state (Handlers.java:27-34). Atomic MERGE statements avoid find-then-save races. However, separate cents and currency queries (lines 68-69) can straddle an onPrice update and yield inconsistent price data.",
+     "resources": "JDBC resource management is delegated to JdbcTemplate, and Kafka consumers, producer infrastructure and the pooled DataSource are Spring-managed through starters and injection (pom.xml:48-59; Handlers.java:27-34). No manually opened connections, statements or producers were found; shutdown relies on framework lifecycle management."
+    }
+   },
+   "error_handling": {
+    "score": 3,
+    "evidence": "Handlers.parse logs deserialization failures and immediately returns null for every topic (Handlers.java:82-89). Processing failures are caught separately in run (lines 92-98), allowing consumption to continue, but its generic log lacks topic, key, partition or offset. Missing IDs are silently skipped (lines 40, 48, 56, 64), and asynchronous publication failures escape this catch because the send future is ignored (line 73)."
+   },
+   "run_surface": {
+    "score": 1,
+    "evidence": "Two required elements are absent from the supplied project: a separate sample-data publisher and a docker-compose broker definition. NotifyApplication.main provides the application entry point (NotifyApplication.java:6-10), and application.properties:2,9 externalizes Kafka bootstrap and H2 location. Resource shutdown is delegated to Spring."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "The only test is the empty @SpringBootTest contextLoads method (src/test/java/eu/bench/notify/NotifyApplicationTests.java:6-11). There are no merge, missing-reference, poison-message or upsert assertions. No tests were run."
+   }
+  }
+ },
+ "median": {
+  "idiomaticity": 4,
+  "structure": 2,
+  "defect_risk": 4,
+  "error_handling": 3,
+  "run_surface": 1,
+  "test_quality": 1
+ },
+ "core_total": 14
+}

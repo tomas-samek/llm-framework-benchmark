@@ -1,0 +1,118 @@
+{
+ "cell": "spring-406",
+ "model": "claude-haiku-5-5",
+ "trial": "h55-09",
+ "judges": {
+  "opus": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "Uses Spring Boot's own starters well. pom.xml:48-56 pulls in spring-boot-starter-kafka and spring-boot-starter-jdbc, so the KafkaTemplate, listener containers and Hikari DataSource are all auto-configured. There are no hand-built @EnableKafka factories. NotificationService:33-63 uses @KafkaListener. Configuration lives in application.properties:4-15 with ${ENV:default} placeholders. NotificationService:27 and ReferenceStore:20 use constructor injection. JSON goes through Jackson 3 (tools.jackson.databind.ObjectMapper, NotificationService:8), and ReferenceStore uses JdbcTemplate. A Spring maintainer might question a few things. Each listener reads a String and parses it by hand (parse(), NotificationService:97-109) instead of using the starter's JsonDeserializer with ErrorHandlingDeserializer and a DefaultErrorHandler. The DDL runs in a @PostConstruct (ReferenceStore:24-29) instead of schema.sql with spring.sql.init. The sample publisher's run hint (-Dloader.main, SampleDataPublisher:17) needs the PropertiesLauncher/ZIP layout, which pom.xml:73-76 does not set up. These are small workarounds, not fighting the framework."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "The split is clean. Messages.java holds the topic constants and record contracts. ReferenceStore.java holds the DDL, the MERGE upserts and the lookups. NotificationService.java holds the Kafka adapters, the merge and the publishing. NotifyApplication and SampleDataPublisher are separate entry points. There is no SQL in the listeners, and parse() and guard() (NotificationService:97-118) are shared, not repeated per topic. The weak spot is that the merge, NotificationService.build() at lines 66-86, calls the store directly instead of being a pure function of (purchase, user, product, price). So you cannot unit-test it without a store, and the listener class has both the adapter job and the merge job."
+   },
+   "defect_risk": {
+    "score": 5,
+    "evidence": "I checked every item and found no major defect. The only minor point is that a missing quantity in a Purchase would deserialize to 0 because Purchase.quantity is a primitive int (Messages:26). The spec does not describe that input.",
+    "checks": {
+     "upsert": "All three upserts use H2 'MERGE INTO ... KEY (pk) VALUES' (ReferenceStore:31-44). Redelivery is idempotent and the latest value wins.",
+     "null_path": "build() (NotificationService:66-86) uses Optional lookups and turns a miss into null for userName, productName, priceCents and currency. totalCents is computed only when priceCents != null (line 73), as Long priceCents * int quantity, so the arithmetic is done in long. firstRow (ReferenceStore:61-63) is null-safe. Price is held as a long and stored as BIGINT. No exception, zero value or dropped purchase on this path.",
+     "one_notification": "onPurchase makes one publish(build(p)) call (NotificationService:61), keyed by n.purchaseId() (line 90). There is no loop. guard() catches failures, so the container does not retry and cannot redeliver a duplicate.",
+     "no_blocking": "No sleep, polling or wait on reference data. The send is asynchronous and whenComplete only logs the outcome (NotificationService:90-94).",
+     "concurrency": "The shared state is thread-safe: a JdbcTemplate over Spring's pooled DataSource, an immutable Jackson ObjectMapper, and a thread-safe KafkaTemplate. Each topic has its own listener container. There is no in-memory cache that could lose updates, and each MERGE is a single atomic statement.",
+     "resources": "Connections are borrowed and returned per statement by JdbcTemplate and Hikari. Spring's lifecycle closes the producer factory, the listener containers and the DataSource on context shutdown. In SampleDataPublisher, try-with-resources closes the KafkaProducer and it is flushed at lines 42 and 48."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "Values are consumed as Strings (application.properties:8), so a deserialization failure cannot happen inside the container. parse() (NotificationService:97-109) catches the Jackson RuntimeException, logs a warning with the topic, and returns null, so the message is skipped at once with no retry. Processing failures go through a separate guard() (lines 111-118), which logs at ERROR with the stack trace and skips. So deserialization failures are told apart from processing failures, and neither can stall a topic or crash the app. Failed publishes are logged in whenComplete (lines 90-94). Gaps: the log lines carry only the topic name, with no partition, offset or key, because the listeners take only the String payload. The deserialization warning logs only ex.getMessage(). guard() also catches every RuntimeException, so a persistent DB failure is logged per message and then skipped (lost), not surfaced."
+   },
+   "run_surface": {
+    "score": 4,
+    "evidence": "NotifyApplication is a single Spring Boot entry point, and Spring-managed lifecycle gives it a clean shutdown of the consumers, producer and DataSource. SampleDataPublisher is a separate main() that does not start the application context. It sends the canonical example data: p1 'Mechanical Keyboard'/electronics, u1 Alice, price p1 7999 USD and p2 500 EUR, and purchases buy1 and buy2 (SampleDataPublisher:34-47). docker-compose.yml runs a single-node KRaft apache/kafka:3.9.0 with port 9092 advertised as localhost:9092. Configuration is fully externalized: SPRING_KAFKA_BOOTSTRAP_SERVERS and SPRING_DATASOURCE_URL, with sensible defaults, in application.properties:4,13. The publisher reads the same environment variable (SampleDataPublisher:25). Weak spots: the publisher duplicates 'localhost:9092' as an in-code default and does not read application.properties. Its documented launch command (-Dloader.main with -jar, line 17) will not work with the default JarLauncher layout in pom.xml."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "The only test is the scaffold's NotifyApplicationTests.contextLoads() (src/test/java/eu/bench/notify/NotifyApplicationTests.java:9-11). There are no tests for the merge, the null path, the poison path or the upsert. It is also a full @SpringBootTest that needs a working Kafka bootstrap and an H2 file."
+   }
+  },
+  "sonnet": {
+   "idiomaticity": {
+    "score": 5,
+    "evidence": "The code uses spring-boot-starter-kafka, starter-jdbc and starter-json. It uses @KafkaListener, a KafkaTemplate injected through the constructor, and JdbcTemplate (ReferenceStore.java:20). It uses Jackson 3 (tools.jackson ObjectMapper). Kafka bootstrap, serializers and the datasource are configured in application.properties. There are no hand-built factory beans. The one small oddity is the string-typed listeners with manual parsing (NotificationService.java:97), which is a deliberate way to keep deserialization failures out of the container."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "Responsibilities are split cleanly. Messages.java holds the record contracts and topic constants. ReferenceStore.java holds the SQL, and NotificationService.java holds the Kafka adapters. SampleDataPublisher is a separate entry point. The merge in NotificationService.build() (line 66) is a package-private method, but it reads the store directly instead of being a pure function. Merge, parse/guard and publish all sit in one class. That is reasonable but not the ideal pure-function split."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "There is no major defect. Minor issues: a structurally valid but incomplete JSON object, such as a missing productId, parses into a record with null ids. The upsert then fails on the primary key and is caught and logged by guard(). A purchase with a missing quantity becomes 0, and a null purchaseId gives a null Kafka key. A Purchase.quantity field outside int range would fail to parse and be skipped. Ordering across the four topics is not guaranteed. This is inherent to the design, and it is not a defect against the spec.",
+    "checks": {
+     "upsert": "Correct. All three tables use H2 `MERGE INTO ... KEY (id)` (ReferenceStore.java:32,37,42), so redelivery is idempotent and the latest value wins.",
+     "null_path": "Correct. Missing user, product or price gives Optional.empty and then null fields (NotificationService.java:67-85). totalCents is computed only when the price is non-null, as a long times an int, which widens to long. A NULL name column is handled by Optional.ofNullable. The purchase is never dropped.",
+     "one_notification": "One kafka.send per purchase, keyed by purchaseId (line 90). It is not inside a loop. There is no retry, so no duplicates. If the build/publish step throws, guard() logs it and skips the message.",
+     "no_blocking": "There is no sleep, polling or waiting. Missing reference data goes straight to the null path.",
+     "concurrency": "Each listener runs in its own container thread. JdbcTemplate uses the Hikari pool, which is thread-safe. The Jackson ObjectMapper and KafkaTemplate are thread-safe. Each upsert is a single atomic MERGE statement. There are no shared mutable fields.",
+     "resources": "JdbcTemplate and the pool manage connections. The Spring-managed KafkaTemplate producer is closed by the context on shutdown. The publisher uses try-with-resources on its KafkaProducer. The send callback logs failures."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "parse() catches RuntimeException, logs a warn with the topic and message, and returns null, so the message is skipped at once (NotificationService.java:97-109). It also handles the case where the payload deserializes to null. guard() catches processing failures separately and logs an error with the stack trace (lines 111-118). Deserialization and processing failures are kept apart, and there is no retry loop, so no topic can stall. What is missing: the logs carry no partition, offset or key. The RuntimeException catch is also broad, and structurally incomplete JSON, such as a null id, falls through to the processing path instead of being rejected earlier."
+   },
+   "run_surface": {
+    "score": 3,
+    "evidence": "docker-compose.yml provides a single-node KRaft broker on localhost:9092. application.properties externalizes the Kafka bootstrap and the H2 file URL through environment placeholders with sensible defaults. Spring Boot handles shutdown cleanly. SampleDataPublisher sends the spec's p1, u1 and price data, plus purchases. Weak spots: its javadoc says to run it with `-Dloader.main=... -jar`, and that likely does not work with the default JarLauncher, because loader.main is honoured only by PropertiesLauncher. The publisher reads only the environment variable and not the config file. There is no README. It does not send a poison message or a missing-reference purchase for buy2, though it does send an unknown-user case."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "The only test is the scaffold's NotifyApplicationTests.contextLoads(), which is empty. It would also need a broker. There are no tests for the merge, the null path, the poison path or the upsert."
+   }
+  },
+  "astra": {
+   "idiomaticity": {
+    "score": 5,
+    "evidence": "pom.xml uses Spring Boot 4 Kafka, JSON and JDBC starters. NotificationService uses constructor injection, @KafkaListener, KafkaTemplate and tools.jackson.databind.ObjectMapper (lines 8\u201330, 33\u201358); ReferenceStore uses injected JdbcTemplate. Configuration is in application.properties, with framework-managed resource lifecycles."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "Messages, ReferenceStore, NotifyApplication and SampleDataPublisher have focused responsibilities. NotificationService combines Kafka adapters, merging and publishing; its build method directly queries the store (lines 66\u201385), so the merge is not a pure function."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "Upserts, missing-reference handling and long totals are implemented correctly. A minor infrastructure-failure risk remains: NotificationService.publish returns before send completion and only logs asynchronous failure (lines 88\u201394), allowing the input offset to advance without a delivered notification.",
+    "checks": {
+     "upsert": "ReferenceStore.upsertProduct, upsertUser and upsertPrice use parameterized H2 MERGE statements with explicit primary keys (lines 31\u201343). Repeated updates replace existing values.",
+     "null_path": "ReferenceStore lookups return empty Optional values for absent rows (lines 46\u201362). NotificationService.build emits null names, price, currency and total as appropriate; multiplication uses long arithmetic only when price is known (lines 66\u201385).",
+     "one_notification": "onPurchase calls publish once; publish sends once to notifications using purchaseId as key (NotificationService lines 57\u201362, 88\u201394). There are no application retry loops or duplicate sends. Delivery failure is only logged; transactional exactly-once semantics are explicitly outside the specification.",
+     "no_blocking": "NotificationService.build performs immediate database lookups without sleeps, polling or waiting for reference rows (lines 66\u201373).",
+     "concurrency": "Listeners keep message state local. ReferenceStore uses JdbcTemplate and atomic database MERGE operations rather than shared connections or mutable caches; the injected mapper is not reconfigured (NotificationService lines 23\u201330; ReferenceStore lines 18\u201357). No cross-topic lost-update mechanism was found.",
+     "resources": "JdbcTemplate manages JDBC resources, while Spring Boot manages the datasource, listener containers and producer factory. SampleDataPublisher explicitly flushes and closes its producer through try-with-resources (lines 33\u201349)."
+    }
+   },
+   "error_handling": {
+    "score": 5,
+    "evidence": "All four listeners call parse, which logs malformed JSON with the topic and skips immediately (NotificationService lines 33\u201362, 97\u2013108). Processing failures are separately caught and logged with topic and exception by guard (lines 111\u2013117); asynchronous publishing failures include purchaseId (lines 90\u201393). No application retry delay is introduced."
+   },
+   "run_surface": {
+    "score": 4,
+    "evidence": "NotifyApplication supplies the managed application lifecycle; application.properties externalizes Kafka bootstrap and H2 URL; docker-compose.yml defines a single-node broker advertised on localhost:9092. SampleDataPublisher.main sends the canonical reference data and purchases and closes its producer. However, its documented launch command uses loader.main with java -jar (lines 16\u201317), while pom.xml does not configure PropertiesLauncher/ZIP layout, so that command does not select the publisher entry point."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "src/test/java/eu/bench/notify/NotifyApplicationTests.java contains only an empty @SpringBootTest contextLoads test (lines 6\u201311). There are no merge, missing-reference, poison-message or upsert tests."
+   }
+  }
+ },
+ "median": {
+  "idiomaticity": 5,
+  "structure": 4,
+  "defect_risk": 4,
+  "error_handling": 4,
+  "run_surface": 4,
+  "test_quality": 1
+ },
+ "core_total": 21
+}

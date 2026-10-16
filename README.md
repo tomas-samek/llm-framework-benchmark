@@ -143,6 +143,20 @@ none), and the rest validated against Tiko's generated topology files. The instr
 mainly added effort: Sol used 6× the input tokens and twice the output. Details:
 [`results/RESULTS.md`](results/RESULTS.md) → "Tiko 0.6.0 with the MCP topology server".
 
+**Code quality: Tiko builds are better structured (2026-10-16).** 72 passing builds were
+scored by three judges from two vendors (Opus 5.5, Sonnet 5.5, gpt-6-astra), each seeing
+only blinded code, against a six-dimension rubric
+([`results/reviews/RUBRIC.md`](results/reviews/RUBRIC.md)).
+- **Tiko scores higher than Spring:** 21.3 against 19.7 out of 25 (p = 0.002). The lead is
+  in structure and idiomaticity. Spring is slightly better on error handling.
+- **Tiko narrows the gaps between models.** On Spring, Sonnet 5.5 and gpt-6-luna put
+  everything into one class and score 15–18; on Tiko every model scores 20–22.5.
+- **Opus 5.5 is first in every cell.**
+- **The two vendors tie** (20.1 vs 20.4).
+- **Only Opus and gpt-6.1-sol test their own work.**
+
+Details: [`results/RESULTS.md`](results/RESULTS.md) → "Code quality of the passing builds".
+
 **Both current releases on the current models:** every model now builds the service on
 Spring Boot 4.1.1 and on Tiko 0.6.0. On the stricter v2 fixtures Spring went 30/30 and
 Tiko 33/35, and a Spring build costs about half as much, because it takes 1.7–1.9× fewer
@@ -382,9 +396,9 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Code-quality rubric (2026-10-15): six anchored dimensions with spec-specific checks
       (`results/reviews/RUBRIC.md`), a blinded judge prompt (`results/reviews/JUDGE.md`)
       and a measured-signals script (`conformance/quality/code_metrics.py`)
-- [ ] Score the 2026-10 cells with the rubric (in progress: a 72-trial stratified sample of
-      `spring-411`, `spring-406` and `tiko-060` passes, judged by Opus 5.5, Sonnet 5.5 and
-      gpt-6-astra)
+- [x] Code-quality scoring (2026-10-16): a 72-trial stratified sample of `spring-411`,
+      `spring-406` and `tiko-060` passes, judged by Opus 5.5, Sonnet 5.5 and gpt-6-astra;
+      Tiko 21.3 vs Spring 19.7 of 25 (p = 0.002), vendors tie, Opus first in every cell
 - [ ] Next after that: **Fable 5.1**, the current Fable, on `spring-411`, `spring-406` and
       `tiko-060` (10 trials each, sub-agent harness and per-trial Maven repositories, as
       for the 5.5 models), with code-quality scoring. The October Fable 5 runs are a harness

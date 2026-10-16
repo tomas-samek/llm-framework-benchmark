@@ -5,7 +5,7 @@ not scores. The script reads files only; it never builds or runs anything.
 
 Usage:
   python conformance/quality/code_metrics.py <trial-dir> [<trial-dir> ...]
-  python conformance/quality/code_metrics.py --cell runs/stage-1/<cell>     # every trial-* in a cell
+  python conformance/quality/code_metrics.py --cell runs/stage-1/<cell> [...]  # every trial-* in the cells
 Writes CSV to stdout (add `> file.csv` to keep it).
 """
 import csv
@@ -20,7 +20,7 @@ MAIN_METHOD = re.compile(r"static\s+void\s+main\s*\(")
 TEST_ANNOTATION = re.compile(r"@(?:Test|ParameterizedTest|RepeatedTest)\b")
 BOOTSTRAP_LITERAL = re.compile(r"localhost:9092")
 SLEEP = re.compile(r"Thread\.sleep\s*\(|TimeUnit\.\w+\.sleep\s*\(")
-FIELDS = ["trial", "framework", "main_loc", "test_loc", "main_types", "test_types", "test_methods",
+FIELDS = ["cell", "trial", "framework", "main_loc", "test_loc", "main_types", "test_types", "test_methods",
           "main_entry_points", "broad_catches", "sleeps_in_main", "bootstrap_literals_in_java",
           "config_files", "docker_compose", "pom_dependencies"]
 
@@ -69,6 +69,7 @@ def metrics(trial):
     compose = any(os.path.exists(os.path.join(trial, n))
                   for n in ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"))
     return {
+        "cell": os.path.basename(os.path.dirname(os.path.normpath(trial))),
         "trial": os.path.basename(os.path.normpath(trial)),
         "framework": framework,
         "main_loc": sum(code_lines(p) for p in main),
@@ -89,8 +90,8 @@ def metrics(trial):
 def main(argv):
     if not argv:
         sys.exit(__doc__)
-    if argv[0] == "--cell":
-        trials = sorted(glob.glob(os.path.join(argv[1], "trial-*")))
+    if argv[0] == "--cell":  # one or more cell directories
+        trials = [t for c in argv[1:] for t in sorted(glob.glob(os.path.join(c, "trial-*")))]
     else:
         trials = argv
     w = csv.DictWriter(sys.stdout, fieldnames=FIELDS, lineterminator="\n")

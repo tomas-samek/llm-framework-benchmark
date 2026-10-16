@@ -1,0 +1,118 @@
+{
+ "cell": "tiko-060",
+ "model": "gpt-6.1-sol",
+ "trial": "sol-05",
+ "judges": {
+  "opus": {
+   "idiomaticity": {
+    "score": 5,
+    "evidence": "This follows the canonical Tiko shape from framework-guidance/skills/tiko-build/reference/kafka.md. KafkaBridges.java:9-28 is a SINGLETON component. Its four non-void @KafkaSource methods each carry a sibling @EventTrigger, and @KafkaSink(topic=\"notifications\", partitionKey=\"purchaseId\") has no stray @EventHandler. The work happens in typed @EventHandler methods in NotificationService.java:21-30, and the notification goes out through an injected EventBus (events.md 'Imperative publish'). Configuration uses tiko-config: the @Configuration(prefix=\"db\") record with @Default values in DatabaseConfig.java, and kebab-case tiko.kafka.* keys in application.yml:1-6. DatabaseFactory.java:14-24 uses @Produces DataSource returning HikariDataSource, which matches SKILL.md:139. ReferenceStore uses raw JDBC through constructor @Inject. Main.java:8 uses the prescribed Tiko.daemon(ConfigSources.classpath(...)).awaitShutdown(). Two small points. The explicit @PreDestroy close in DatabaseFactory.java:25-26 is redundant, because the guidance says HikariDataSource is AutoCloseable. poison-record-policy: SKIP goes against FRAMEWORK-GUIDE.md:185-191's production advice, but spec \u00a76 explicitly requires log-and-skip, so it is the right documented knob here."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "The units are small and focused. The message records are separate (Purchase, PriceUpdate, ProductUpdate, UserUpdate, Notification). KafkaBridges.java holds only transport adapters, NotificationService.java only orchestrates, and ReferenceStore.java holds the persistence. DatabaseConfig and DatabaseFactory handle configuration and wiring. There is no duplicated per-topic logic: the three overloaded upserts share write() at ReferenceStore.java:34-39. The weak point is that the merge is not a pure function. ReferenceStore.merge (ReferenceStore.java:41-60) mixes the SQL lookup with building the Notification and computing totalCents, so you can't test the merge without a database."
+   },
+   "defect_risk": {
+    "score": 5,
+    "evidence": "I checked every item and found no major or minor defect in the main code. Upserts use H2 MERGE ... KEY(pk). The null path uses scalar subqueries that always return one row. The total is a long, and the notification is published once and synchronously. Handlers are serialized and the DataSource is pooled. Every JDBC resource is in try-with-resources.",
+    "checks": {
+     "upsert": "ReferenceStore.java:26,29,32 use `MERGE INTO <table> (...) KEY(<pk>) VALUES (?, ?, ?)`, which is a true insert-or-replace by primary key. Redelivery is idempotent and the latest write wins.",
+     "null_path": "ReferenceStore.merge (lines 43-58) uses scalar subqueries, so r.next() always sees a row, with NULL for any missing reference. `cents` is read as a boxed Long (r.getObject(\"cents\", Long.class)), and totalCents = cents == null ? null : cents * p.quantity(). That is null when the price is unknown and long arithmetic otherwise, with no int overflow. The price column is BIGINT and PriceUpdate.priceCents is a long. Nothing throws, nothing is zeroed and nothing is dropped.",
+     "one_notification": "NotificationService.purchase (line 28-30) calls events.publish exactly once per purchase. The single @KafkaSink in KafkaBridges.java:27-28 has no extra @EventHandler, which would double-fire. It is keyed by partitionKey=\"purchaseId\". There is no loop and no retry path, because the poison policy is SKIP rather than SEEK.",
+     "no_blocking": "Main code has no sleeps, polling or waits. The only Thread.sleep is the demo grace period in SampleDataPublisher.java:23, which falls under run surface.",
+     "concurrency": "All four @EventHandler methods are `synchronized` on the singleton NotificationService (lines 22-29), so updates and reads across topics are serialized. ReferenceStore keeps no mutable state and takes a fresh connection from the HikariDataSource pool for each operation. Each write is an atomic MERGE, so there are no lost updates.",
+     "resources": "Every Connection, Statement, PreparedStatement and ResultSet is in try-with-resources (ReferenceStore.java:16, 35, 49, 52). The pool is closed on shutdown (DatabaseFactory @PreDestroy plus AutoCloseable). The Kafka producer and consumers belong to the Tiko transport, which Tiko.daemon starts and shuts down through its shutdown hook."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "application.yml:6 sets `tiko.kafka.poison-record-policy: SKIP`. Per kafka.md \u00a7'A record that fails ingest', a failure in deserialization, the bridge method or the local publish becomes a KafkaIngestError. That error goes to the default ErrorHandler, which logs it, and the record is committed past at once, with no SEEK backoff stall. Synchronous handler exceptions, such as the SQLException thrown from NotificationService, travel back through the bridge's publish and are skipped the same way, so consumption continues. Malformed messages on every topic are therefore logged and skipped immediately. The gaps: the code does no logging of its own and relies entirely on the framework's default ErrorHandler line. Deserialization and processing failures go down the same SKIP path with no distinction or custom context. A transient database failure silently drops a purchase notification beyond that framework log line."
+   },
+   "run_surface": {
+    "score": 5,
+    "evidence": "There is one runnable application: Main.java uses Tiko.daemon(...).awaitShutdown(), whose shutdown hook stops the transport and runs pre-destroy, and DatabaseFactory closes the pool. A separate entry point, SampleDataPublisher.java, uses a plain KafkaProducer in try-with-resources and does not boot the container. It publishes the spec's example data: p1 'Mechanical Keyboard'/electronics, u1 'Alice', price p1 7999 USD, and a purchase of quantity 2. docker-compose.yml runs a single-node KRaft apache/kafka broker advertised on localhost:9092. Configuration is fully externalized with sensible defaults in application.yml:3-11: KAFKA_BOOTSTRAP_SERVERS, KAFKA_CONSUMER_GROUP, H2_URL, H2_USER and H2_PASSWORD, plus @Default values in DatabaseConfig. The publisher also reads KAFKA_BOOTSTRAP_SERVERS (SampleDataPublisher.java:15), defaulting to localhost:9092. The README documents both run commands."
+   },
+   "test_quality": {
+    "score": 4,
+    "evidence": "NotificationServiceTest drives the real NotificationService and ReferenceStore against an isolated in-memory H2 per test (setup, lines 23-36) and a RecordingEventBus from tiko-test. It needs no broker and runs fast. The tests cover: the full merge plus timestamp echo (fullMergeAndTimestampEcho); all references missing, including explicit JSON nulls in serialized output (missingReferencesAreExplicitJsonNulls); price only, so user and product are missing (priceOnly); latest upsert wins plus redelivery idempotence (latestUpsertWinsAndRedeliveryIsIdempotent); and price refresh (priceRefreshDoesNotAlterEarlierNotifications). The buy() helper asserts that exactly one notification is published per purchase. The gap is the poison test (malformedJsonIsRejectedAndLaterValidDataWorks, lines 81-87). It only checks that JsonKafkaSerializer.deserialize throws. It never pushes a malformed record through the @KafkaSource/SKIP path with FakeKafkaBroker, so the skip behaviour itself is untested."
+   }
+  },
+  "sonnet": {
+   "idiomaticity": {
+    "score": 5,
+    "evidence": "The code follows the Tiko guidance closely. KafkaBridges.java uses @KafkaSource and @EventTrigger on each input topic and @KafkaSink(partitionKey=\"purchaseId\") for output. NotificationService uses @EventHandler with constructor @Inject on SINGLETON components. DatabaseConfig is a @Configuration record with @Default values. DatabaseFactory uses @Produces for a pooled Hikari DataSource and @PreDestroy to close it. Main calls Tiko.daemon(ConfigSources.classpath(\"application.yml\")).awaitShutdown(), the idiom the guide gives for transport-driven apps. Raw JDBC is expected here. The only deviation is poison-record-policy: SKIP in application.yml, which the guide discourages, but SPEC \u00a76 requires skipping."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "Responsibilities are separated: message records (Purchase, Notification, and so on), KafkaBridges as the Kafka adapter, NotificationService as the event handler, ReferenceStore for SQL, and DatabaseFactory/DatabaseConfig for wiring. The merge is not a pure function. ReferenceStore.merge (ReferenceStore.java:41) mixes the SQL lookup with building the Notification, which makes it less testable in isolation. The schema DDL also runs in the ReferenceStore constructor."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "There is no major defect. The minor risks are: the in-memory H2 default loses reference data on restart, SKIP also drops records that fail transiently, and the purchase path depends on the framework's event dispatch semantics, which I could not see.",
+    "checks": {
+     "upsert": "All three upserts use H2 MERGE INTO ... KEY(pk) (ReferenceStore.java:26-32), so they are idempotent and the latest value wins.",
+     "null_path": "merge() uses four scalar subqueries, so r.next() always has a row. cents is read with getObject(..., Long.class) and totalCents is null when cents is null. The total is computed as long * int, so it is wide enough and cannot overflow. Unknown user, product or price gives null fields and the purchase is not dropped.",
+     "one_notification": "purchase() publishes exactly one event, outside any loop, and the sink is keyed by purchaseId. A Kafka redelivery would produce a second notification, but the spec excludes exactly-once.",
+     "no_blocking": "There are no sleeps, polling or waits in the main code. The only sleep is in the sample publisher, which is not part of the app.",
+     "concurrency": "The NotificationService handlers are synchronized. The pooled Hikari DataSource gives each call its own connection, so updates across topics are not lost. Each call opens and closes its own connection, so there is no shared mutable state.",
+     "resources": "Connections, statements and result sets are closed with try-with-resources. The Hikari pool is closed in @PreDestroy, and Tiko shuts the Kafka transport and sink down through the daemon. The sample publisher's producer is closed with try-with-resources."
+    }
+   },
+   "error_handling": {
+    "score": 3,
+    "evidence": "poison-record-policy: SKIP in application.yml means a malformed record is skipped at once without a retry loop, and the README says Tiko logs it. The code has no logging or catch of its own, so context such as topic, partition, offset or key depends entirely on the framework. SKIP applies to handler exceptions as well, so a transient SQLException silently drops that record. The code does not separate deserialization failures from processing failures. The handlers do declare throws SQLException and do not swallow errors."
+   },
+   "run_surface": {
+    "score": 5,
+    "evidence": "Main starts the daemon, which shuts down cleanly (Tiko.daemon with awaitShutdown, Hikari closed in @PreDestroy). SampleDataPublisher is a separate entry point and sends the spec's example data (p1, u1, price 7999, then a purchase). docker-compose.yml runs a single-node KRaft apache/kafka on localhost:9092. Configuration is externalized in application.yml through ${KAFKA_BOOTSTRAP_SERVERS:...}, H2_URL, H2_USER, H2_PASSWORD and KAFKA_CONSUMER_GROUP, with sensible defaults. The README documents the run steps. The publisher has a 2 s sleep, which is acceptable for a demo."
+   },
+   "test_quality": {
+    "score": 4,
+    "evidence": "NotificationServiceTest uses an in-memory H2 database and RecordingEventBus over a stub EventBus, so there is no broker and it runs fast. It covers the full merge with timestamp echo, all references missing with JSON null serialization, price-only, latest upsert winning with redelivery, price refresh, and a poison payload. The poison test only checks that JsonKafkaSerializer.deserialize throws, not the skip behavior of the Kafka path. It does not test each reference missing individually (user-only or product-only absent)."
+   }
+  },
+  "astra": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "KafkaBridges uses the documented singleton @KafkaSource/@EventTrigger and @KafkaSink patterns, with constructor-injected EventBus in NotificationService and typed configuration in DatabaseConfig. Main.main uses the documented daemon lifecycle. DatabaseFactory.close adds redundant explicit pool cleanup despite framework-guidance/skills/tiko-build/SKILL.md:139 recommending automatic AutoCloseable cleanup."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "KafkaBridges, NotificationService, ReferenceStore, DatabaseFactory, DatabaseConfig and message records separate transport, orchestration, persistence and configuration. However, ReferenceStore.merge (src/main/java/eu/bench/notify/ReferenceStore.java:41-57) combines SQL lookup, notification construction and total calculation; the merge is not an independently testable pure function."
+   },
+   "defect_risk": {
+    "score": 5,
+    "evidence": "No defect found in the listed checks: ReferenceStore uses atomic MERGE statements, nullable Long prices and totals, and scoped JDBC resources; NotificationService publishes once per purchase through the keyed Kafka sink. Framework-managed delivery guarantees are not inferred beyond the supplied guidance.",
+    "checks": {
+     "upsert": "ReferenceStore.upsert overloads (ReferenceStore.java:25-32) use MERGE with explicit primary keys for all three tables, supporting replacement and idempotent redelivery.",
+     "null_path": "ReferenceStore.merge (ReferenceStore.java:43-57) uses scalar subqueries that return null for missing rows, reads cents as Long, and computes a long total only when price is present. Missing user or product does not suppress a known-price total.",
+     "one_notification": "NotificationService.purchase (NotificationService.java:28-29) publishes exactly once. KafkaBridges.notification (KafkaBridges.java:27-28) uses purchaseId as the key and has no duplicate @EventHandler registration. No application retry loop exists; crash-level exactly-once delivery is explicitly outside SPEC.md:133.",
+     "no_blocking": "ReferenceStore.merge performs an immediate query without polling for references. NotificationService has no sleep or reference-arrival wait. SampleDataPublisher.java:23 sleeps only in the separate demo publisher.",
+     "concurrency": "NotificationService.java:22-28 synchronizes all four handlers on the singleton service. ReferenceStore acquires separate pooled connections per operation and shares no mutable connection or statement; atomic SQL upserts avoid find-then-save races.",
+     "resources": "ReferenceStore.java:16,35,49,52 closes connections, statements and result sets with try-with-resources. DatabaseFactory.close closes the pool. Main.main delegates transport shutdown to Tiko's documented daemon lifecycle; application code owns no separate service producer. SampleDataPublisher.java:18-26 closes its producer after acknowledged sends."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "src/main/resources/application.yml:6 selects SKIP for all inputs. Supplied reference/kafka.md:61-75 documents routing ingest failures to ErrorHandler and committing past failures without retry. NotificationService propagates SQL failures rather than swallowing them. However, Main.main installs no specialized error handler, and the supplied code does not demonstrate distinct deserialization-versus-processing diagnostics or their complete record context."
+   },
+   "run_surface": {
+    "score": 5,
+    "evidence": "Main.main uses Tiko.daemon(...).awaitShutdown(); DatabaseFactory.close supplies pool cleanup. SampleDataPublisher.main is independent of application startup and sends the canonical product, user, price and purchase. docker-compose.yml:3-19 configures a single-node broker advertised at localhost:9092. application.yml:3-11 externalizes Kafka and H2 settings with environment overrides; pom.xml:103-108 configures the application entry point."
+   },
+   "test_quality": {
+    "score": 4,
+    "evidence": "NotificationServiceTest covers full merging, absent references, explicit JSON nulls, price-only merging, product upsert/redelivery, price refresh and one event per invocation using H2 and RecordingEventBus without a broker. It lacks separate missing-user, missing-product and missing-price cases with the other references present. malformedJsonIsRejectedAndLaterValidDataWorks only invokes the serializer directly, so it does not verify transport logging, skipping or continued consumption."
+   }
+  }
+ },
+ "median": {
+  "idiomaticity": 5,
+  "structure": 4,
+  "defect_risk": 5,
+  "error_handling": 4,
+  "run_surface": 5,
+  "test_quality": 4
+ },
+ "core_total": 23
+}

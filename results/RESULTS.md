@@ -1217,6 +1217,99 @@ moved Maven's build directory to `build/` and had to copy the generated files ba
    `~/.m2` to find Tiko's jars. That is allowed: the prompt points to the dependency jars,
    and Tiko has no equivalent of the Boot 4 starter leak. Both Haiku arms did it.
 
+### 🆕 Code quality of the passing builds (2026-10-15/16)
+
+The oracle only checks behavior. This round scores the code itself with the rubric in
+`results/reviews/RUBRIC.md`. It covers six dimensions scored 1–5, with anchored levels and
+spec-specific checks. The core total is the first five, 5–25; test quality is reported
+separately, because the prompt doesn't ask for tests.
+
+**Sample.** Up to 4 trials per model per cell from the passes on v2 of `spring-411`,
+`spring-406` and `tiko-060`, drawn with a fixed seed: **72 trials**. gpt-6-luna has only 2
+Spring passes per cell, and Fable 5's three October batches are pooled.
+
+**Judging.** Each trial was judged by **Opus 5.5, Sonnet 5.5 and gpt-6-astra**
+(Codex, medium), each in a fresh read-only session.
+- **What the judges saw:** a blinded bundle (`conformance/quality/make_bundle.py`) holding
+  the code, the spec and, for Tiko, the framework's own docs. No model name, trial ID,
+  transcript or oracle result.
+- **Scores:** the median per dimension. The prompt is `results/reviews/JUDGE.md`.
+- **Records:** per-trial reviews in `results/reviews/stage-1-<cell>-<prefix>-<NN>.json`, one
+  row per trial in `results/code-quality.csv`, and measured signals for all 255 current
+  trials in `results/code-metrics.csv`.
+
+**Calibration.** Two rounds ran on 10 trials before the main run.
+- **Round 1:** two Opus runs agreed on 46 of 48 scores, so a second Opus adds no
+  independence; the panel uses three distinct models. Astra rated defect risk 1 for
+  pathological overflow and database-down cases that Opus rated 4.
+- **The fix:** the rubric now rates severity by how reachable a defect is, treats
+  32-bit totals as minor, and scores sample-publisher problems under run surface.
+- **Main run:** every judge pair was within 1 point on 425–431 of 432 scores, and no
+  dimension of any trial differed by 3 or more, so nothing needed re-review.
+
+**Cost:** Opus $20.67 and Sonnet $8.74 for 72 judgments each; Astra about 0.6% of the
+ChatGPT Plus weekly limit per judgment.
+
+| Cell | n | Core (of 25) | Idiomaticity | Structure | Defect risk | Error handling | Run surface | Tests |
+|---|---|---|---|---|---|---|---|---|
+| Tiko 0.6.0 | 24 | **21.3** | 4.50 | **4.04** | 4.21 | 3.88 | 4.71 | 2.25 |
+| Boot 4.1.1 | 22 | 19.9 | 4.00 | 3.23 | 4.00 | 4.23 | 4.41 | 1.82 |
+| Boot 4.0.6 | 26 | 19.6 | 3.96 | 3.27 | 3.88 | 4.19 | 4.31 | 1.58 |
+
+Core total by model, compared only within a cell (n = 4, Luna 2):
+
+| Model | Boot 4.1.1 | Boot 4.0.6 | Tiko 0.6.0 |
+|---|---|---|---|
+| Opus 5.5 | **21.8** | **21.8** | **22.5** |
+| gpt-6.1-sol | 21.2 | 21.5 | 21.5 |
+| gpt-6-astra | 21.2 | 20.5 | 21.8 |
+| Haiku 5.5 | 19.8 | 19.5 | 21.5 |
+| Fable 5 | — | 19.0 | — |
+| Sonnet 5.5 | 16.8 | 18.0 | 20.8 |
+| gpt-6-luna | 17.0 | 14.5 | 20.0 |
+
+1. **Tiko code scores higher than Spring code**: 21.3 against 19.7 (Mann-Whitney
+   p = 0.002).
+   - **Where Tiko leads:** structure (4.04 vs 3.25, p < 0.001), idiomaticity (4.50 vs
+     3.98, p < 0.001) and defect risk (4.21 vs 3.94, p = 0.008).
+   - **Where Spring leads:** error handling (4.21 vs 3.88, p = 0.04). That is the known
+     Tiko gap: its malformed-message errors carry no reliable signal (tiko-di#549).
+   - **Why:** Tiko's component model and in-repo guidance split the code into small,
+     single-purpose types. Every model writes more types on Tiko (median 13–20 against
+     7.5–16.5 on Spring).
+2. **Tiko narrows the gaps between models.** On Spring, core totals run from 14.5 to 21.8;
+   on Tiko, from 20.0 to 22.5. Tiko levels quality as well as compliance.
+   - **Sonnet 5.5 on Spring** (17.4 vs 20.2 for the other models, p < 0.001): each Spring
+     build is one ~130-line `Handlers.java` holding the message types, all four listeners,
+     the SQL, the merge and the publishing. Every judge scored its structure 1–2. On Tiko,
+     Sonnet's structure is 4.
+   - **gpt-6-luna's Spring passes** (15.8, p = 0.003): its 4 passes are compact and
+     monolithic too, and two of them wire Kafka by hand.
+3. **The vendors tie**: Anthropic 20.1, OpenAI 20.4 (p = 0.42). **Opus 5.5 is first in
+   every cell**, with gpt-6.1-sol and gpt-6-astra close behind.
+4. **Passing code rarely hides major defects.** Defect risk averages about 4 for every
+   model. The judges found minor issues: 32-bit totals, fire-and-forget sends with no
+   failure handling, and a purchase dropped when a lookup throws.
+5. **Only Opus and Sol test their own work**: test quality is 3 or more in 9 of 12 Opus
+   trials and 9 of 12 Sol trials, 4 of 12 for Astra, and none for Sonnet, Haiku, Fable
+   or Luna.
+
+**Caveats.**
+- **Small groups:** 4 trials per model per cell. A one-point difference between two
+  models in one cell is within judge noise; the framework effect (72 trials) and the
+  Sonnet and Luna Spring effects are not.
+- **Possible vendor preference among the judges.** On the core total, each judge's
+  OpenAI-minus-Anthropic difference is: Opus +0.2, Sonnet −0.6, Astra **+1.3**. Relative
+  to Opus, Astra scores Anthropic code 0.9 points lower and OpenAI code about the same.
+  That looks like an own-vendor preference in Astra, or a mild one in Sonnet. The
+  three-judge median dampens it: Opus, the most neutral judge, also gives a tie (+0.2).
+  The vendor comparison above is a tie under every judge's scores. The framework effect
+  (Tiko above Spring) holds for each judge on its own.
+- **Fable 5** appears for completeness only. Its 4 trials include a hand-wired build
+  forced in as a calibration case, and the model is not the current Fable (see "Fable 5
+  on the 4.0.6 control"). On the same Boot 4.0.6 cell it scores level with Haiku 5.5
+  (19.0 vs 19.5).
+
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 
 Stage 1 is **one-shot**: build, grade, done — the agent never runs its own app. Stage 2

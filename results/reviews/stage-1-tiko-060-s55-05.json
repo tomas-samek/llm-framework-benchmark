@@ -1,0 +1,118 @@
+{
+ "cell": "tiko-060",
+ "model": "claude-sonnet-5-5",
+ "trial": "s55-05",
+ "judges": {
+  "opus": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "This follows the canonical Tiko Kafka shape from framework-guidance/skills/tiko-build/reference/kafka.md. KafkaIn.java:11-25 has a SINGLETON component and non-void @KafkaSource bridges with a sibling @EventTrigger. Handlers.java:20-44 uses typed @EventHandler methods. KafkaOut.java:10 is a @KafkaSink with partitionKey=\"purchaseId\" and no extra @EventHandler, so it does not double-fire. Main.java:9-10 uses the prescribed Tiko.daemon(ConfigSources.classpath(...)).awaitShutdown() idiom. AppConfig.java:6-8 is a typed @Configuration record with @Default. application.yml:8-11 uses kebab-case tiko.kafka.* keys. Injection is constructor-only (@Inject in Handlers and ReferenceStore). ReferenceStore uses AutoCloseable as its implicit @PreDestroy. Two workarounds a Tiko maintainer would question. First, ReferenceStore.java:26-33 builds HikariDataSource inside the repository constructor. The cookbook recipe (SKILL.md:139) is a separate `@Produces DataSource` factory. Second, application.yml:11 sets poison-record-policy: SKIP, which FRAMEWORK-GUIDE.md:185-191 explicitly discourages in favour of a KafkaIngestErrorDecider. Here the spec's log-and-skip requirement justifies it in part."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "The split is clean, with one job per unit. Messages.java holds the wire records. ReferenceStore.java holds the schema, upserts, lookups and pool. KafkaIn.java and KafkaOut.java are the transport adapters. Handlers.java is the event logic. AppConfig.java is configuration. Main.java and SamplePublisher.java are the entry points. No SQL leaks into the Kafka adapters, and nothing is duplicated (ReferenceStore.exec and query are shared helpers). It falls short of 5 because the merge in Handlers.onPurchase (lines 30-44) is not a pure function: the store lookups, Notification construction and bus.publish are all in one method. Testing the merge alone therefore needs a store and a bus."
+   },
+   "defect_risk": {
+    "score": 5,
+    "evidence": "I found no major defects after going through every check. Any possible issues need input the spec doesn't describe; for example, a missing quantity would bind to primitive int 0 in Messages.Purchase.",
+    "checks": {
+     "upsert": "Upserts are correct. ReferenceStore.java:45, 50 and 55 use H2 `MERGE INTO ... KEY(pk) VALUES (?,?,?)` for products, users and prices, so redelivery is idempotent and the latest value wins.",
+     "null_path": "The null path is correct. Lookups return Optional (ReferenceStore.query:83-93, which also returns empty for a null id). Handlers.onPurchase:36-42 maps each missing value to null with orElse(null). totalCents is computed only inside price.map, as `x.cents() * p.quantity()`, which is long * int \u2192 long (Price.cents is long; Notification.totalCents is Long). No exception, no zero, no dropped purchase.",
+     "one_notification": "Exactly one notification per purchase. There is a single bus.publish per purchase (Handlers.java:34), and the only subscriber is the @KafkaSink in KafkaOut.java:10, keyed by partitionKey=\"purchaseId\". There is no loop, and no duplicate @EventHandler on the sink.",
+     "no_blocking": "Nothing blocks. onPurchase does three direct SELECTs with no sleep, polling or wait. The only Thread.sleep is in SamplePublisher (demo only).",
+     "concurrency": "Concurrency is safe. Handlers and ReferenceStore are stateless apart from the thread-safe HikariDataSource. Each operation borrows its own pooled connection, and there are no shared caches or mappers. Writes on different topics go to different tables or rows, and MERGE is atomic per row, so no updates are lost.",
+     "resources": "Resources are handled. Connections, statements and ResultSets use try-with-resources (ReferenceStore.java:37, 73, 85, 87). The pool is closed in ReferenceStore.close() (AutoCloseable, implicit @PreDestroy). The framework daemon owns the Kafka producer and consumers and closes them through its shutdown hook. SamplePublisher's producer is closed with try-with-resources and flushed."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "application.yml:11 sets tiko.kafka.poison-record-policy: SKIP. Per kafka.md:61-75, a deserialization, bridge or publish failure on any @KafkaSource topic is routed as a KafkaIngestError to the ErrorHandler and then committed past at once. That gives an immediate log-and-skip without stalling or crashing. Handler failures surface as IllegalStateException from ReferenceStore.exec/query (lines 76-78, 90-92) and go down the same path, so consumption continues. Gaps: the application has no logging or ErrorHandler of its own, so the log context (topic, partition, offset) is only what the framework's default handler emits. Deserialization failures are not told apart from processing failures. A transient DB failure on a purchase is skipped just like a poison record, so that purchase is lost after a log line, with no distinction."
+   },
+   "run_surface": {
+    "score": 5,
+    "evidence": "All four items are present and solid. The runnable app is Main.java, which uses Tiko.daemon. That installs a JVM shutdown hook, stops the Kafka transport and runs the @PreDestroy/AutoCloseable teardown, so ReferenceStore.close() closes the Hikari pool. The separate publisher entry point, SamplePublisher.java, sends the spec's canonical data: p1 \"Mechanical Keyboard\"/electronics, u1 Alice, price p1 7999 USD, and purchase buy1 u1 p1 qty 2. docker-compose.yml is a single-node KRaft apache/kafka broker advertised on localhost:9092. Configuration is fully externalized with defaults in application.yml:3-9: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092} and ${H2_URL:jdbc:h2:file:./data/refdb}, with user and password also from the environment. The publisher reads the bootstrap from KAFKA_BOOTSTRAP_SERVERS with a localhost default (SamplePublisher.java:13)."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "There is no src/test directory and there are no test classes. tiko-test is commented out in pom.xml:52-58, and junit-jupiter is declared but unused."
+   }
+  },
+  "sonnet": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "The code follows Tiko's model. Main.java:9-10 uses Tiko.daemon(ConfigSources.classpath(...)).awaitShutdown(). KafkaIn.java uses @KafkaSource with @EventTrigger. KafkaOut.java uses @KafkaSink(partitionKey=\"purchaseId\"). Handlers.java uses @EventHandler with constructor @Inject. AppConfig.java is a typed @Configuration record with @Default. ReferenceStore is a SINGLETON that implements AutoCloseable, which Tiko treats as an implicit @PreDestroy. Raw JDBC over HikariCP is expected for Tiko. One deduction: application.yml:11 sets poison-record-policy: SKIP, which the guidance discourages because SKIP also drops records that failed transiently. The spec asks for skip behaviour, and the guidance recommends a KafkaIngestErrorDecider for a nuanced policy. The code uses neither. SamplePublisher also builds a raw KafkaProducer instead of using a Tiko facility, but that is minor."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "Responsibilities are split cleanly. Messages.java holds the records. ReferenceStore.java handles SQL and the upserts. KafkaIn and KafkaOut are thin adapters. Handlers.java does the lookups and merge. AppConfig.java holds configuration. There is no duplication. Deduction: the merge is inline in Handlers.onPurchase (lines 30-44) and depends on the store and the EventBus, so it is not a pure function that can be tested alone."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "No major defects found. Minor issues: the SKIP policy would also drop messages that fail transiently, such as a database error, and ReferenceStore.exec/query wrap SQLException in IllegalStateException with no retry. The Notification is published via the EventBus into the @KafkaSink, so a failed publish is not retried either. int quantity is widened to long by x.cents() * p.quantity(), so totals are safe.",
+    "checks": {
+     "upsert": "Correct. ReferenceStore.java:45, 50 and 55 use H2 MERGE INTO ... KEY(pk), so redelivery is idempotent and the latest value wins.",
+     "null_path": "Correct. Handlers.java:36-42 maps each Optional to null. totalCents is computed only when the price is present, as long * int in a Long. ReferenceStore.query returns Optional.empty() for a null id. No exception, zero or dropped purchase occurs when reference data is missing.",
+     "one_notification": "One bus.publish per purchase (Handlers.java:34). The sink is keyed by purchaseId. There is no loop and no retry of the publish. A purchase redelivered by Kafka would legitimately produce another notification, but the spec treats exactly-once as out of scope.",
+     "no_blocking": "No sleeps, polling or waiting in main code. The lookups are immediate. The only Thread.sleep is in SamplePublisher, which is a demo.",
+     "concurrency": "Hikari pool of 4 and H2 MERGE are atomic per statement. The store has no shared mutable state. If Tiko consumes the four topics on separate threads, a purchase can run before a price that arrived at the same moment. That is acceptable under the spec and is not a lost update. Records are immutable and the serializer is Tiko's.",
+     "resources": "Connections, statements and result sets are closed with try-with-resources. ReferenceStore.close() closes the Hikari pool and runs as an implicit @PreDestroy. Tiko's daemon owns the Kafka producer and consumers and shuts them down. SamplePublisher closes its producer with try-with-resources after flush."
+    }
+   },
+   "error_handling": {
+    "score": 3,
+    "evidence": "application.yml:11 sets poison-record-policy: SKIP, so malformed JSON on any topic is skipped immediately and consumption continues. The framework runner does the logging, and the app adds no log line of its own with topic, partition or offset. Store errors are wrapped in IllegalStateException (ReferenceStore.java:77, 91), which is propagated and then skipped by the global SKIP policy. SKIP therefore does not distinguish deserialization failures from processing failures, and a transient database failure silently drops that message. No KafkaIngestErrorDecider is registered. There are no application-level catch blocks, so nothing broad hides failures, but it does not meet the 5 anchor."
+   },
+   "run_surface": {
+    "score": 4,
+    "evidence": "Main.java provides a daemon with awaitShutdown, and Tiko tears down the container, including the AutoCloseable store, on shutdown. SamplePublisher.java is a separate entry point that publishes the spec's example data (p1, u1, price 7999 USD, buy1 qty 2). docker-compose.yml runs a single-node KRaft Kafka on localhost:9092. application.yml externalizes everything with env defaults: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}, ${H2_URL:jdbc:h2:file:./data/refdb}, H2_USER and H2_PASSWORD. Minor weaknesses: there is no README, SamplePublisher reads only the env var and not application.yml, and it sleeps 1 s between reference data and the purchase."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "There is no src/test directory. The tiko-test dependency is commented out in pom.xml, and no tests of any kind exist."
+   }
+  },
+  "astra": {
+   "idiomaticity": {
+    "score": 4,
+    "evidence": "KafkaIn uses the documented @KafkaSource/@EventTrigger bridges; KafkaOut.toKafka correctly uses @KafkaSink without an additional @EventHandler. AppConfig and Main use typed configuration and Tiko.daemon. ReferenceStore constructs HikariDataSource internally (src/main/java/eu/bench/notify/ReferenceStore.java:26), whereas framework-guidance/skills/tiko-build/SKILL.md:139 recommends exposing it through @Produces DataSource and constructor injection."
+   },
+   "structure": {
+    "score": 4,
+    "evidence": "Messages, KafkaIn, KafkaOut, ReferenceStore and AppConfig provide clear boundaries. However, Handlers.onPurchase combines database lookups, notification construction and publication (src/main/java/eu/bench/notify/Handlers.java:30); the merge is not an independently testable pure function. ReferenceStore also owns pool construction and schema initialization."
+   },
+   "defect_risk": {
+    "score": 4,
+    "evidence": "The normal processing path has correct keyed upserts, nullable lookups, long arithmetic and one publication. A minor infrastructure-failure risk remains: ReferenceStore.query throws on SQL failure, and the global SKIP policy can discard the purchase without a notification (ReferenceStore.java:90; src/main/resources/application.yml:11; framework-guidance/skills/tiko-build/reference/kafka.md:73).",
+    "checks": {
+     "upsert": "ReferenceStore.upsertProduct, upsertUser and upsertPrice use MERGE with explicit primary keys (ReferenceStore.java:44-56). Redelivery replaces existing rows; no find-then-insert race.",
+     "null_path": "ReferenceStore.query returns Optional.empty for missing rows or null lookup IDs (ReferenceStore.java:83-88). Handlers.onPurchase maps missing references to null and calculates total only when price exists (Handlers.java:35-43). Price.cents is long and Notification.totalCents is Long, so multiplication is widened.",
+     "one_notification": "Handlers.onPurchase contains one bus.publish, outside any loop. KafkaOut.toKafka has a single @KafkaSink keyed by purchaseId and no duplicate @EventHandler (KafkaOut.java:10). No application retries are configured. Crash-level exactly-once delivery is outside SPEC.md:133.",
+     "no_blocking": "Handlers.onPurchase performs immediate lookups without polling or waiting for missing reference rows. The only sleep is in SamplePublisher.main (SamplePublisher.java:24), outside service processing.",
+     "concurrency": "Handlers and Kafka adapters have no mutable per-message fields. ReferenceStore uses a pooled DataSource, separate connections per operation, prepared statements and atomic MERGE statements (ReferenceStore.java:23, 45-55, 73, 85). No shared connection or cache race was found.",
+     "resources": "ReferenceStore.init, exec and query use try-with-resources for connections, statements and result sets; close shuts down the pool (ReferenceStore.java:37, 73, 85-97). Main uses the documented daemon lifecycle, delegating Kafka cleanup to the framework; AutoCloseable cleanup is documented in framework-guidance/FRAMEWORK-GUIDE.md:89. SamplePublisher explicitly flushes and closes its producer."
+    }
+   },
+   "error_handling": {
+    "score": 4,
+    "evidence": "application.yml:11 selects SKIP for all four inputs, avoiding poison-record retry stalls. The shipped Kafka guidance documents routing ingest failures to ErrorHandler and default logging (framework-guidance/skills/tiko-build/reference/kafka.md:61-75, 105). Main retains that default handling. However, the application supplies no explicit distinction between deserialization and processing failures; SQL exceptions become generic IllegalStateException instances (ReferenceStore.java:76-77, 90-91), and the same skip policy applies to transient failures."
+   },
+   "run_surface": {
+    "score": 4,
+    "evidence": "Main.main uses the documented daemon shutdown path; ReferenceStore.close closes Hikari. application.yml:3-9 externalizes H2 and Kafka settings. docker-compose.yml defines a single-node broker advertised on localhost:9092. SamplePublisher.main is a separate entry point sending the canonical example data. Its weak spot is delivery assurance: send ignores producer futures (SamplePublisher.java:32), and a fixed one-second sleep assumes reference processing has completed before publishing the purchase (SamplePublisher.java:24)."
+   },
+   "test_quality": {
+    "score": 1,
+    "evidence": "There are no test source files under src/. pom.xml:62-66 declares JUnit, but no tests exercise Handlers.onPurchase, upserts, missing references or malformed input."
+   }
+  }
+ },
+ "median": {
+  "idiomaticity": 4,
+  "structure": 4,
+  "defect_risk": 4,
+  "error_handling": 4,
+  "run_surface": 4,
+  "test_quality": 1
+ },
+ "core_total": 20
+}
