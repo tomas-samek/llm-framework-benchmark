@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS products (
+    product_id VARCHAR(255) PRIMARY KEY, name VARCHAR(4096), category VARCHAR(4096)
+);
+CREATE TABLE IF NOT EXISTS users (
+    user_id VARCHAR(255) PRIMARY KEY, name VARCHAR(4096), email VARCHAR(4096)
+);
+CREATE TABLE IF NOT EXISTS prices (
+    product_id VARCHAR(255) PRIMARY KEY, price_cents BIGINT NOT NULL, currency VARCHAR(255)
+);

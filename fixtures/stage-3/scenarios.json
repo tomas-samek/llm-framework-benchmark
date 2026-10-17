@@ -1,0 +1,107 @@
+{
+  "_format": {
+    "version": 1,
+    "description": "Stage-3 search acceptance vectors (docs/specs/stage-3-spec.md section 6). Run by the same oracle against the SAME running app, right after the Stage-1 regression run (fixtures/stage-1/scenarios.v2.json), so the store already holds the Stage-1 products. The search products use words no Stage-1 product has. Steps run in array order; each httpCheck GETs ORACLE_HTTP_BASE (default http://localhost:8080) + path and polls until status and body match, for up to waitMs (default 10 s). Bodies are deep-compared like notifications (numeric-tolerant, nulls significant, no extra fields). Each httpCheck is one graded result.",
+    "topics_in": ["product-updates", "price-updates"]
+  },
+  "scenarios": [
+    {
+      "id": "S0",
+      "title": "search data",
+      "steps": [
+        { "publish": { "topic": "product-updates", "key": "sp1", "value": { "productId": "sp1", "name": "Ergonomic Split Keyboard", "category": "peripherals" } } },
+        { "publish": { "topic": "product-updates", "key": "sp2", "value": { "productId": "sp2", "name": "Vertical Ergonomic Mouse", "category": "peripherals" } } },
+        { "publish": { "topic": "product-updates", "key": "sp3", "value": { "productId": "sp3", "name": "Ergonomic Office Chair", "category": "furniture" } } },
+        { "publish": { "topic": "product-updates", "key": "sp4", "value": { "productId": "sp4", "name": "Trackball Cleaning Kit", "category": "accessories" } } },
+        { "publish": { "topic": "price-updates", "key": "sp1", "value": { "productId": "sp1", "priceCents": 12900, "currency": "EUR" } } },
+        { "publish": { "topic": "price-updates", "key": "sp2", "value": { "productId": "sp2", "priceCents": 4900, "currency": "EUR" } } },
+        { "settleMs": 6000 }
+      ]
+    },
+    {
+      "id": "S1",
+      "title": "one word, sorted by productId, unknown price is null",
+      "steps": [
+        { "httpCheck": { "id": "S1", "key": "ergonomic", "path": "/search?q=ergonomic", "status": 200, "body": {
+          "query": "ergonomic", "total": 3, "results": [
+            { "productId": "sp1", "name": "Ergonomic Split Keyboard", "category": "peripherals", "priceCents": 12900, "currency": "EUR" },
+            { "productId": "sp2", "name": "Vertical Ergonomic Mouse", "category": "peripherals", "priceCents": 4900, "currency": "EUR" },
+            { "productId": "sp3", "name": "Ergonomic Office Chair", "category": "furniture", "priceCents": null, "currency": null } ] } } }
+      ]
+    },
+    {
+      "id": "S2",
+      "title": "case-insensitive, every word must match",
+      "steps": [
+        { "httpCheck": { "id": "S2", "key": "ERGONOMIC mouse", "path": "/search?q=ERGONOMIC%20mouse", "status": 200, "body": {
+          "query": "ERGONOMIC mouse", "total": 1, "results": [
+            { "productId": "sp2", "name": "Vertical Ergonomic Mouse", "category": "peripherals", "priceCents": 4900, "currency": "EUR" } ] } } }
+      ]
+    },
+    {
+      "id": "S3",
+      "title": "words may match the name or the category",
+      "steps": [
+        { "httpCheck": { "id": "S3", "key": "mouse peripherals", "path": "/search?q=mouse%20peripherals", "status": 200, "body": {
+          "query": "mouse peripherals", "total": 1, "results": [
+            { "productId": "sp2", "name": "Vertical Ergonomic Mouse", "category": "peripherals", "priceCents": 4900, "currency": "EUR" } ] } } }
+      ]
+    },
+    {
+      "id": "S4",
+      "title": "category filter",
+      "steps": [
+        { "httpCheck": { "id": "S4", "key": "ergonomic+furniture", "path": "/search?q=ergonomic&category=furniture", "status": 200, "body": {
+          "query": "ergonomic", "total": 1, "results": [
+            { "productId": "sp3", "name": "Ergonomic Office Chair", "category": "furniture", "priceCents": null, "currency": null } ] } } }
+      ]
+    },
+    {
+      "id": "S5",
+      "title": "limit cuts results, not total",
+      "steps": [
+        { "httpCheck": { "id": "S5", "key": "ergonomic limit 2", "path": "/search?q=ergonomic&limit=2", "status": 200, "body": {
+          "query": "ergonomic", "total": 3, "results": [
+            { "productId": "sp1", "name": "Ergonomic Split Keyboard", "category": "peripherals", "priceCents": 12900, "currency": "EUR" },
+            { "productId": "sp2", "name": "Vertical Ergonomic Mouse", "category": "peripherals", "priceCents": 4900, "currency": "EUR" } ] } } }
+      ]
+    },
+    {
+      "id": "S6",
+      "title": "no stemming, no prefix match",
+      "steps": [
+        { "httpCheck": { "id": "S6", "key": "keyboards", "path": "/search?q=keyboards", "status": 200, "body": { "query": "keyboards", "total": 0, "results": [] } } },
+        { "httpCheck": { "id": "S6", "key": "ergo", "path": "/search?q=ergo", "status": 200, "body": { "query": "ergo", "total": 0, "results": [] } } }
+      ]
+    },
+    {
+      "id": "S7",
+      "title": "rename is reflected; old words stop matching",
+      "steps": [
+        { "publish": { "topic": "product-updates", "key": "sp4", "value": { "productId": "sp4", "name": "Monitor Cleaning Kit", "category": "accessories" } } },
+        { "httpCheck": { "id": "S7", "key": "trackball", "path": "/search?q=trackball", "status": 200, "body": { "query": "trackball", "total": 0, "results": [] } } },
+        { "httpCheck": { "id": "S7", "key": "monitor", "path": "/search?q=monitor", "status": 200, "body": {
+          "query": "monitor", "total": 1, "results": [
+            { "productId": "sp4", "name": "Monitor Cleaning Kit", "category": "accessories", "priceCents": null, "currency": null } ] } } }
+      ]
+    },
+    {
+      "id": "S8",
+      "title": "price is read at query time",
+      "steps": [
+        { "publish": { "topic": "price-updates", "key": "sp1", "value": { "productId": "sp1", "priceCents": 13900, "currency": "EUR" } } },
+        { "httpCheck": { "id": "S8", "key": "split", "path": "/search?q=split", "status": 200, "body": {
+          "query": "split", "total": 1, "results": [
+            { "productId": "sp1", "name": "Ergonomic Split Keyboard", "category": "peripherals", "priceCents": 13900, "currency": "EUR" } ] } } }
+      ]
+    },
+    {
+      "id": "S9",
+      "title": "bad requests are 400 with an error field",
+      "steps": [
+        { "httpCheck": { "id": "S9", "key": "no q", "path": "/search", "status": 400, "errorField": "error" } },
+        { "httpCheck": { "id": "S9", "key": "limit 0", "path": "/search?q=ergonomic&limit=0", "status": 400, "errorField": "error" } }
+      ]
+    }
+  ]
+}

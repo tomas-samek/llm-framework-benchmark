@@ -1,0 +1,11 @@
+tiko:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer-group: ${KAFKA_CONSUMER_GROUP:purchase-notifications}
+    auto-offset-reset: earliest
+    poison-record-policy: SKIP
+database:
+  url: ${H2_URL:jdbc:h2:mem:notifications;DB_CLOSE_DELAY=-1}
+  user: ${H2_USER:sa}
+  password: ${H2_PASSWORD:}
+  poolSize: 4

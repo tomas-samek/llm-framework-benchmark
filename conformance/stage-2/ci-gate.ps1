@@ -13,6 +13,10 @@
 # Usage:
 #   .\ci-gate.ps1 -TrialDir <abs path> -RunType <jar|mvn> [-SkipBuild] [-Fixtures v2]
 # Use the same -Fixtures version the trial will finally be graded with.
+#
+# Private copy: if conformance-oracle.jar sits next to this script, the gate uses the
+# oracle, docker-compose.yml and scenarios*.json from its own folder instead of the repo,
+# so contestants outside the repo are never pointed at it.
 param(
     [Parameter(Mandatory=$true)][string]$TrialDir,
     [Parameter(Mandatory=$true)][ValidateSet('jar','mvn')][string]$RunType,
@@ -20,10 +24,18 @@ param(
     [ValidateSet('v1','v2')][string]$Fixtures = 'v1'
 )
 $ErrorActionPreference = 'Continue'
-$Root      = (Resolve-Path "$PSScriptRoot\..\..").Path
-$Compose   = Join-Path $Root 'conformance\docker-compose.yml'
-$Oracle    = Join-Path $Root 'conformance\oracle\target\conformance-oracle.jar'
-$Scenarios = Join-Path $Root "fixtures\stage-1\scenarios$(if ($Fixtures -eq 'v2') { '.v2' } else { '' }).json"
+$ScenarioFile = "scenarios$(if ($Fixtures -eq 'v2') { '.v2' } else { '' }).json"
+if (Test-Path (Join-Path $PSScriptRoot 'conformance-oracle.jar')) {
+    $Compose   = Join-Path $PSScriptRoot 'docker-compose.yml'
+    $Oracle    = Join-Path $PSScriptRoot 'conformance-oracle.jar'
+    $Scenarios = Join-Path $PSScriptRoot $ScenarioFile
+} else {
+    $Root      = (Resolve-Path "$PSScriptRoot\..\..").Path
+    $Compose   = Join-Path $Root 'conformance\docker-compose.yml'
+    $Oracle    = Join-Path $Root 'conformance\oracle\target\conformance-oracle.jar'
+    $Scenarios = Join-Path $Root "fixtures\stage-1\$ScenarioFile"
+}
+$BuildLog  = Join-Path $env:TEMP ('ci-gate-build-' + (Split-Path $TrialDir -Leaf) + '.log')
 $Java      = 'W:\tools\java\jdk21\bin\java.exe'
 $Mvn       = 'W:\tools\apache-maven\bin\mvn.cmd'
 $env:JAVA_HOME = 'W:\tools\java\jdk21'
@@ -34,19 +46,23 @@ if (-not (Test-Path $TrialDir)) { Write-Host "GATE ERROR: trial dir not found"; 
 # 1. Rebuild (so the gate always tests current source).
 if (-not $SkipBuild) {
     Write-Host "GATE: building..."
-    & $Mvn -q -f (Join-Path $TrialDir 'pom.xml') -DskipTests package *> (Join-Path $env:TEMP 'ci-gate-build.log')
+    & $Mvn -q -f (Join-Path $TrialDir 'pom.xml') -DskipTests package *> $BuildLog
     if ($LASTEXITCODE -ne 0) {
         Write-Host "GATE: BUILD FAILED --- fix compilation before the acceptance gate can run."
-        Get-Content (Join-Path $env:TEMP 'ci-gate-build.log') -Tail 15 | Where-Object { $_ -match 'ERROR|error:' } | Select-Object -First 8
+        Get-Content $BuildLog -Tail 15 | Where-Object { $_ -match 'ERROR|error:' } | Select-Object -First 8
         exit 1
     }
 }
 
-# 2. Fresh broker + topics. Unlike grade-batch.ps1 (opt-in BENCH_KILL_STRAY_JAVA), this
-#    kills ALL java/mvn unconditionally: a Stage-2 contestant routinely leaves its own
-#    smoke-run app alive, which would join this broker and corrupt the gate's reading.
-#    Run Stage-2 trials on a box with no other JVMs you care about.
-Get-Process java,mvn -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# 2. Fresh broker + topics. A Stage-2 contestant may leave its own smoke-run app alive,
+#    which would join this broker and corrupt the gate's reading, so every java/mvn
+#    process started from this cell's trial folders (the parent of TrialDir) is stopped.
+#    Other JVMs (IDEs, unrelated builds) are left alone. Run one Stage-2 trial at a
+#    time per machine: the broker and topics are shared.
+$CellDir = (Split-Path $TrialDir -Parent).TrimEnd('\').Replace('/', '\')
+Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
+    Where-Object { $_.CommandLine -and $_.CommandLine.Replace('/', '\').IndexOf($CellDir, [StringComparison]::OrdinalIgnoreCase) -ge 0 } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 docker compose -f $Compose down -v *> $null
 docker compose -f $Compose up -d *> $null
 Start-Sleep -Seconds 10

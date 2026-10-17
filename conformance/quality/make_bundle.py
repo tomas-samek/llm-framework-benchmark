@@ -6,11 +6,17 @@ under framework-guidance/. Build output, Maven repositories, logs and data files
 out. Trial IDs, local paths and agent or model names are replaced in every text file, and
 the bundle is scanned afterwards for anything identifying.
 
-Usage: python conformance/quality/make_bundle.py <trial-dir> <out-dir> <case-id>
+Stage 3 (--stage3): SPEC.md is the Stage 3 spec, SERVICE-SPEC.md the existing service's
+(Stage 1) spec, and CHANGES.diff the contestant's change against the trial's baseline git
+commit (new files included), so judges score the change in the context of the fixed
+starting code.
+
+Usage: python conformance/quality/make_bundle.py [--stage3] <trial-dir> <out-dir> <case-id>
 """
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -19,7 +25,7 @@ SKIP_DIRS = {"target", "build", ".m2", ".maven-repository", ".mvn", ".git", ".id
              ".junie", ".github"}
 SKIP_FILES = re.compile(r"(?i)(\.log|\.db|\.mv\.db|\.trace\.db|\.jar|\.class|\.lock|^mvnw(\.cmd)?$|"
                         r"^CLAUDE\.md$|^AGENTS\.md$|^TASK-SPEC\.md$|^\.mcp\.json$|^\.gitignore$)")
-TEXT = re.compile(r"(?i)\.(java|xml|properties|ya?ml|md|txt|json|sql|conf|sh|cmd|ps1|kt|gradle)$|^Dockerfile$")
+TEXT = re.compile(r"(?i)\.(java|xml|properties|ya?ml|md|txt|json|sql|conf|sh|cmd|ps1|kt|gradle|diff)$|^Dockerfile$")
 SCRUB = [
     (re.compile(r"(?i)[a-z]:[\\/]+(?:workspace|bench-contestants)[^\s\"'`<>)]*"), "<project-dir>"),
     (re.compile(r"(?i)/[a-z]/(?:workspace|bench-contestants)[^\s\"'`<>)]*"), "<project-dir>"),
@@ -73,14 +79,31 @@ def leftovers(dst):
     return hits
 
 
-def main(trial, out, case):
+def write_changes(trial, dst):
+    """CHANGES.diff: the source change against the trial's first (baseline) commit. New files
+    are marked intent-to-add first, so the diff includes them."""
+    git = ["git", "-C", trial]
+    base = subprocess.run(git + ["rev-list", "--max-parents=0", "HEAD"], capture_output=True, text=True,
+                          check=True).stdout.split()[0]
+    paths = ["pom.xml", "src"] + [f for f in os.listdir(trial) if re.match(r"(?i)(readme|docker-compose|compose)", f)]
+    subprocess.run(git + ["add", "--intent-to-add", "--"] + paths, capture_output=True, check=True)
+    diff = subprocess.run(git + ["-c", "core.autocrlf=false", "diff", "--no-color", "--ignore-cr-at-eol", base, "--"] + paths,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
+    open(os.path.join(dst, "CHANGES.diff"), "w", encoding="utf-8", newline="").write(diff)
+
+
+def main(trial, out, case, stage3=False):
     dst = os.path.join(out, case)
     if os.path.exists(dst):
         shutil.rmtree(dst)
     os.makedirs(dst)
     copy_tree(trial, dst)
+    specs = os.path.join(REPO, "docs", "specs")
+    if stage3:
+        write_changes(trial, dst)
+        shutil.copyfile(os.path.join(specs, "stage-1-spec.md"), os.path.join(dst, "SERVICE-SPEC.md"))
     scrub(dst)
-    shutil.copyfile(os.path.join(REPO, "docs", "specs", "stage-1-spec.md"), os.path.join(dst, "SPEC.md"))
+    shutil.copyfile(os.path.join(specs, "stage-3-spec.md" if stage3 else "stage-1-spec.md"), os.path.join(dst, "SPEC.md"))
     pom = open(os.path.join(trial, "pom.xml"), encoding="utf-8", errors="replace").read()
     if "<tiko.version>" in pom:
         g = os.path.join(dst, "framework-guidance")
@@ -94,6 +117,9 @@ def main(trial, out, case):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    argv = sys.argv[1:]
+    stage3 = "--stage3" in argv
+    argv = [a for a in argv if a != "--stage3"]
+    if len(argv) != 3:
         sys.exit(__doc__)
-    sys.exit(main(*sys.argv[1:]))
+    sys.exit(main(*argv, stage3=stage3))
