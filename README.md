@@ -88,8 +88,26 @@ may be that setup rather than the models. Details:
 > **These Fable runs don't represent the current Fable.** Fable 5 is the previous model
 > (the current one is Fable 5.1). Its October builds were a harness experiment on Boot
 > 4.0.6 only, under three different harnesses. Don't compare them with the 5.5 or OpenAI
-> models as a generation benchmark. Fable 5.1 on all three current cells is next on the
-> roadmap.
+> models as a generation benchmark. For the current Fable, see "Fable 5.1" below.
+
+**Fable 5.1 (2026-10-16/17).** The current Fable ran on all three current cells as a
+sub-agent, with a per-trial home folder and Maven repository. N=10 per cell; v1 and v2
+gave the same scores:
+
+| | Boot 4.1.1 | Boot 4.0.6 | Tiko 0.6.0 |
+|---|---|---|---|
+| Fable 5.1 | **9/10** (8/10 strict) | **10/10** | **10/10** |
+| Median cost per build (exact) | $2.70 | $2.88 | $4.50 |
+
+- **The one failure is the July mistake:** plain `spring-kafka`, so no `KafkaTemplate` bean.
+- **One Boot 4.1.1 pass is cache-assisted.** The trial globbed `/c/Users/*/.m2`, found the
+  shared cache past its own home, and saw the Kafka starter there. Hence 8/10 strict.
+- **Tiko costs about 1.6× Spring**, through more tool calls.
+- **Code quality matches Opus 5.5**, so far scored by Opus and Sonnet only: 21.3, 21.1 and
+  22.9 of 25 against Opus's 21.1, 21.5 and 22.9. Fable 5.1 also tests its own work. The
+  third judge, gpt-6-astra, waits for its weekly limit.
+
+Details: [`results/RESULTS.md`](results/RESULTS.md) → "Fable 5.1 on all three current cells".
 
 **OpenAI's models (2026-10-13/15).** Three OpenAI models were run through Codex CLI
 0.162.1 at medium reasoning. They got the same prompts and isolation as the Claude cells,
@@ -399,10 +417,13 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
 - [x] Code-quality scoring (2026-10-16): a 72-trial stratified sample of `spring-411`,
       `spring-406` and `tiko-060` passes, judged by Opus 5.5, Sonnet 5.5 and gpt-6-astra;
       Tiko 21.3 vs Spring 19.7 of 25 (p = 0.002), vendors tie, Opus first in every cell
-- [ ] Next after that: **Fable 5.1**, the current Fable, on `spring-411`, `spring-406` and
-      `tiko-060` (10 trials each, sub-agent harness and per-trial Maven repositories, as
-      for the 5.5 models), with code-quality scoring. The October Fable 5 runs are a harness
-      experiment and don't represent the current Fable
+- [x] **Fable 5.1**, the current Fable, on `spring-411`, `spring-406` and `tiko-060`
+      (2026-10-16/17): 9/10 (8/10 strict), 10/10 and 10/10 on v1 and v2; code quality
+      level with Opus 5.5 (provisional, Opus and Sonnet judges)
+- [ ] Fable 5.1 code quality: add the gpt-6-astra judgments after its weekly limit resets
+      (Thu 2026-10-22) and write the final three-judge medians
+- [ ] Stronger cache isolation for Spring cells: a per-trial home doesn't stop a
+      `/c/Users/*/.m2` glob (e.g. move the shared cache aside during builds)
 - [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
       held-out acceptance set to detect gate overfitting
 - [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)

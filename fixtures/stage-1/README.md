@@ -98,6 +98,13 @@ per model per cell. v1 and v2 gave identical scores in all nine cells:
 Luna's Spring failures are startup failures, mostly the missing `KafkaTemplate` bean, so
 they scored 0/7 on both. Its one Tiko failure published nothing on either version.
 
+## Fable 5.1 on the current cells (2026-10-16/17)
+
+Fable 5.1 (`f51`), as a sub-agent, 10 trials per cell. v1 and v2 gave identical scores:
+- **`spring-411`:** 9/10. f51-07 is the missing `KafkaTemplate` bean, 0/7 on both.
+- **`spring-406`:** 10/10.
+- **`tiko-060`:** 10/10, including the v2 malformed-message stall.
+
 ## Tiko 0.6.0 with the MCP server (2026-10-15)
 
 `tiko-060-mcp` (MCP server attached) and `tiko-060-ctl` (headless Haiku, no MCP), 10 trials

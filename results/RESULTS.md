@@ -737,9 +737,9 @@ The two patch releases are indistinguishable on cost, calls and compliance, so t
 > - **Thin quality sample.** In the code-quality sample Fable has only 4 Boot 4.0.6 trials,
 >   one of them a hand-wired Kafka build forced in as a calibration case.
 >
-> Don't read Fable 5 against the 5.5 or OpenAI models as a generation comparison. Fable
-> 5.1 on the three current cells, with the same harness and scoring as the other models,
-> is the next run after the OpenAI code-quality scoring.
+> Don't read Fable 5 against the 5.5 or OpenAI models as a generation comparison. For the
+> current Fable on the three current cells, with the same scoring as the other models, see
+> "Fable 5.1 on all three current cells".
 
 Fable 5 scored 1/5 on this scaffold in July (`spring-fix`, "Multi-model extension").
 The Agent tool's `fable` alias now resolves to Fable 5.1, so the original model was run
@@ -1309,6 +1309,91 @@ Core total by model, compared only within a cell (n = 4, Luna 2):
   forced in as a calibration case, and the model is not the current Fable (see "Fable 5
   on the 4.0.6 control"). On the same Boot 4.0.6 cell it scores level with Haiku 5.5
   (19.0 vs 19.5).
+
+### 🆕 Fable 5.1 on all three current cells (2026-10-16/17)
+
+Fable 5.1 is the current Fable. It ran on the three current cells with the same prompts,
+scaffolds, grading and code-quality rubric as the other models. N=10 per cell, graded on v1
+and v2.
+
+**Harness.**
+- **Sub-agent of a clean headless orchestrator**, as for Fable 5's subagent arm. The
+  orchestrator makes exactly one Agent call, with no model parameter, passing the cell's
+  contestant prompt verbatim.
+- **Per-trial home.** `HOME` and `USERPROFILE` point to a per-trial folder whose
+  `.m2/repository` is the trial's own Maven repository. `MAVEN_OPTS` alone wasn't enough:
+  Fable 5.1 lists `~/.m2` on its own during setup, and in the first Boot 4.1.1 batch 8 of 10
+  trials saw the Kafka module there before naming it. That batch is archived as invalid and
+  was rerun.
+- **Checked for every trial:**
+  - the sub-agent ran on `claude-fable-5-1` and got the prompt verbatim;
+  - the framework version was kept and a jar was built;
+  - the app was never started. Every automated flag was a heredoc writing Javadoc or a
+    README that mentions `mvn exec:java`.
+
+| Cell | v1 | v2 | Median cost per build | Tool calls | Output tokens |
+|---|---|---|---|---|---|
+| Boot 4.1.1 | **9/10** (8/10 strict) | **9/10** (8/10 strict) | $2.70 ($2.24–3.82) | 29 | 37.6K |
+| Boot 4.0.6 | **10/10** | **10/10** | $2.88 ($2.27–3.92) | 30.5 | 37.4K |
+| Tiko 0.6.0 | **10/10** | **10/10** | $4.50 ($3.55–7.25) | 46.5 | 49.5K |
+
+**Cost.** The figures are exact sub-agent costs: the CLI total minus the orchestrator's own
+share, which was about $0.60 per trial. The sub-agent's output tokens come from the same
+records.
+
+1. **Boot 4.1.1, 07: the July failure.** It used plain `spring-kafka`, and the app didn't
+   start because no `KafkaTemplate` bean exists. Every other Spring build added
+   `spring-boot-starter-kafka`.
+2. **Boot 4.1.1, 03: a cache-assisted pass.** The trial ran `ls -d ~/.m2 /c/Users/*/.m2`,
+   which found the real user cache past the per-trial home. It listed
+   `org/springframework/boot` there and added the starter in its next call. Counting it as
+   a failure gives 8/10 strict, the same rule as "Maven cache leak".
+   - **No other trial reached the shared cache.** A broader scan (any `C:\Users` path or
+     glob) found only:
+     - the trials' own `$USERPROFILE`, which is the per-trial home;
+     - their own Claude Code tool-output files;
+     - one more `/c/Users/*/.m2` glob (Boot 4.0.6, 03), which listed directory names only.
+   - **Not enough for the next round:** a per-trial home stops `~/.m2`, but not a search of
+     other users' folders.
+3. **Tiko costs Fable 5.1 about 1.6× Spring.** Tiko builds took 1.6× the tool calls and 1.3×
+   the output tokens. Every Tiko build passed both fixture sets, including the v2
+   malformed-message stall that tripped two Haiku trials.
+4. **Against Fable 5** on the same Boot 4.0.6 cell and the same sub-agent harness: 10/10
+   against 8/10, at $2.88 against $2.24 per build.
+5. **Usage limits.** Ten Tiko trials don't fit in one Claude 5-hour window, but about five
+   do. The cell ran as 5 + 5 across a reset; the first Tiko attempt hit the session limit
+   and is archived.
+
+**Code quality (provisional: Opus 5.5 and Sonnet 5.5 only).** 4 passing trials per cell,
+drawn with a fixed seed: Boot 4.1.1 01, 02, 04, 05; Boot 4.0.6 02, 05, 06, 08; Tiko 03, 05,
+07, 08.
+- **Judges:** the same blinded bundles and rubric as the 72-trial sample. gpt-6-astra,
+  the third judge, waits for its weekly ChatGPT limit to reset.
+- **Agreement:** the two judges were within 1 point on all 72 scores, exact on 48.
+- **Cost:** Opus $4.91 and Sonnet $2.03 for 12 judgments each.
+
+The other models' scores below are their Opus + Sonnet medians, so the scores are
+comparable:
+
+| Model (Opus + Sonnet median) | Boot 4.1.1 | Boot 4.0.6 | Tiko 0.6.0 |
+|---|---|---|---|
+| **Fable 5.1** | **21.3** · tests 3.1 | 21.1 · tests 1.5 | **22.9** · tests 4.4 |
+| Opus 5.5 | 21.1 · 2.5 | **21.5** · 2.3 | **22.9** · 4.1 |
+| gpt-6.1-sol | 20.9 · 3.5 | 20.4 · 2.4 | 21.3 · 4.1 |
+| gpt-6-astra | 20.4 · 1.8 | 20.1 · 1.8 | 20.6 · 2.6 |
+| Haiku 5.5 | 19.6 · 1.0 | 19.6 · 1.0 | 21.4 · 1.0 |
+| Sonnet 5.5 | 17.0 · 1.0 | 18.4 · 1.0 | 20.6 · 1.0 |
+| gpt-6-luna | 17.0 · 1.0 | 15.0 · 1.0 | 19.8 · 1.0 |
+| Fable 5 | — | 19.3 · 1.0 | — |
+
+- **Fable 5.1 writes code level with Opus 5.5**, the top model in every cell of the main
+  sample: within 0.4 points everywhere, and tied on Tiko. The gaps are within judge noise
+  for n = 4.
+- **Fable 5.1 tests its own work**, unlike Fable 5: test quality is 4 or more in 6 of 12
+  trials, including all four on Tiko.
+- **The framework effect holds**: Tiko 22.9 against Spring 21.1–21.3.
+- **Both judges are Claude models.** The main sample's caveat on vendor preference applies
+  until Astra's scores are in; the final medians will replace this table.
 
 ## Stage 2 — loop until complies (2026-07-02/03, cost corrected 2026-07-03)
 

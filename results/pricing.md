@@ -18,13 +18,14 @@ Added 2026-10-11 (from the Claude API model reference cached 2026-10-06):
 | Claude Opus 5.5 (`claude-opus-5-5`) | $4.00 | $20.00 | cache read $0.20 = **×0.05** of input |
 | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | $2.00 | $10.00 | |
 | Claude Haiku 5.5 (`claude-haiku-5-5`) | $0.10 | $0.50 | $0.50 / $2.50 for calls whose prompt exceeds 100K tokens; cache multipliers not published separately — standard ones assumed |
+| Claude Fable 5.1 (`claude-fable-5-1`) | $10.00 | $50.00 | cache read $0.25 = **×0.025** of input |
 
 That reference now lists Claude Sonnet 5 at $2.00 / $10.00 (the former intro rate). The
 historical Sonnet 5 rows are still priced at $3.00 / $15.00 as above; they were not
 re-priced.
 
 Cache multipliers (applied to the *input* rate above): cache write ×1.25 (5-minute
-TTL) or ×2 (1-hour TTL); cache read ×0.1 (×0.05 for Opus 5.5). `cost_usd` in
+TTL) or ×2 (1-hour TTL); cache read ×0.1 (×0.05 for Opus 5.5, ×0.025 for Fable 5.1). `cost_usd` in
 `results/stage-2-loop.csv` and `results/metrics.csv` is `input×price_in +
 cache_write×price_in×1.25 + cache_read×price_in×read_mult + output×price_out`, all
 divided by 1e6 — i.e. the **full**, correctly-weighted cost, not an output-only proxy.

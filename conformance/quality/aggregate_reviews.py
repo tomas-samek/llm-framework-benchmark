@@ -25,6 +25,7 @@ DIMS = ["idiomaticity", "structure", "defect_risk", "error_handling", "run_surfa
 CORE = DIMS[:5]
 MODEL_OF_PREFIX = {"o55": "claude-opus-5-5", "s55": "claude-sonnet-5-5", "h55": "claude-haiku-5-5",
                    "f5": "claude-fable-5", "f5s": "claude-fable-5", "f5o": "claude-fable-5",
+                   "f51": "claude-fable-5-1",
                    "ast": "gpt-6-astra", "sol": "gpt-6.1-sol", "lun": "gpt-6-luna"}
 CSV_FIELDS = ["cell", "model", "trial", "compliance_v2", "idiomaticity", "structure", "defect_risk",
               "error_handling", "run_surface", "core_total", "test_quality", "judges"]

@@ -146,6 +146,11 @@ Stage-1 result it builds on). A trial must not have access to:
   Boot 4 Kafka starter's name to six trials (`results/RESULTS.md` → "Maven cache leak").
   Give each trial its own `-Dmaven.repo.local`. Reading the project's own parent BOM is
   fine.
+  - **`-Dmaven.repo.local` isn't always enough.** Some agents list `~/.m2` on their own.
+    For those, also point `HOME` and `USERPROFILE` to a per-trial folder.
+  - **Neither stops a search of other users' folders.** In 2026-10 a Fable 5.1 trial ran
+    `ls -d /c/Users/*/.m2` and found the shared cache anyway. Keep the shared cache out of
+    reach during Spring builds: move it aside, or run the agent as a separate OS user.
 
 Fresh agent session per trial. No carry-over context.
 

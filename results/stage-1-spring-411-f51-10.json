@@ -1,0 +1,41 @@
+{
+  "compliance" : 1.0,
+  "passed" : 7,
+  "total" : 7,
+  "results" : [ {
+    "scenario" : "AC1",
+    "key" : "buy1",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC2",
+    "key" : "buy2",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC3",
+    "key" : "buy3",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC4",
+    "key" : "buy4",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC5",
+    "key" : "buy5",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyA",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "AC6",
+    "key" : "buyB",
+    "passed" : true,
+    "detail" : "ok"
+  } ]
+}
