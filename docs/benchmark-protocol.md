@@ -23,7 +23,7 @@ what changes is the **mode**.
 |---|---|---|---|
 | **1 — One-shot build** | `stage-1-spec.md` (Kafka → H2 → notifications) | build once, graded by the hidden oracle; the agent never runs the app | cold-build correctness — the version-recency / doc-discovery results to date |
 | **2 — Loop until complies** | `stage-1-spec.md` (same task) | the agent runs the app against a live broker and **iterates until it believes it complies**, capped by a budget | whether iteration *converges* — and at what iteration/token cost — or whether a missing-knowledge failure (e.g. never discovering `spring-boot-starter-kafka`) is one that looping cannot escape |
-| **3 — Evolve (brownfield)** | `stage-3-spec.md` *(planned — not written yet)* (add Lucene full-text search + an HTTP query endpoint to the Stage-1 app) | given a working Stage-1 codebase in a fresh context, extend it without breaking the existing acceptance scenarios | cold-codebase mutation — regression safety + new-feature correctness |
+| **3 — Evolve (brownfield)** | `stage-3-spec.md` (add Lucene full-text search + an HTTP query endpoint to the Stage-1 app) | given a working Stage-1 codebase in a fresh context, extend it without breaking the existing acceptance scenarios | cold-codebase mutation — regression safety + new-feature correctness |
 
 **Stage 2 — the loop's feedback signal** (this determines what Stage 2 measures;
 see §"Stage 2 loop" below). **Decided: (b)**, implemented by

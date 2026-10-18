@@ -335,6 +335,69 @@ because every extra gate iteration means re-reading a larger accumulated convers
 and that cache-read volume dominates real cost. The two Sonnet 5 batches — same model,
 same task — differ 2.3× in average cost purely through iteration count.
 
+**Haiku 5.5 on Tiko 0.6.0 (2026-10-17): 10/10.** The cheapest current model got the same
+loop on the out-of-training-corpus framework: the Stage 1 Tiko prompt, the CI gate in
+place of the "don't run the app" rule, v2 fixtures, at most 8 gate runs. Every trial
+passed on its **first** gate run (one ran it again to confirm), and the final oracle grade
+was 100% on v1 and v2 in all ten. Median cost to compliance was **$0.03** per build
+($0.02–$0.10, exact sub-agent cost). Since Haiku already builds Tiko almost perfectly in
+one shot, this confirms rather than rescues; the loop costs it little. The planned Spring
+counterpart, gpt-6-luna on Boot 4 (2/10 one-shot), is still to run.
+
+## Headline results — Stage 3
+
+Stage 3 is a **brownfield** task: the agent gets a working build of the Stage 1 service
+and adds **full-text product search over HTTP** with Apache Lucene 9.11.1
+(`GET /search?q&category&limit`; spec:
+[`docs/specs/stage-3-spec.md`](docs/specs/stage-3-spec.md)). It is one-shot, like Stage
+1: the agent may run the tests but never the app.
+
+- **Same starting code for every trial.** One fixed passing Stage 1 build per framework,
+  both by gpt-6-astra, with the Stage 1 spec renamed `SERVICE-SPEC.md` and the new feature
+  as `TASK-SPEC.md` ([`scaffolds/stage3/`](scaffolds/stage3/README.md)). The untouched
+  starting code scores 7/7 on regression and 0/12 on search.
+- **Graded in two parts on one app instance:** the Stage 1 v2 scenarios (regression, 7)
+  and 12 HTTP search checks (S1–S9 in the spec: whole-word, case-insensitive matching, no
+  stemming, a category filter, a limit, upserts reflected within 5 s, prices read at query
+  time, 400 errors). Grader: `conformance/stage-3/grade-stage3.ps1`.
+- **Harness:** sub-agents, as in Stage 1, with a per-trial home folder and Maven
+  repository and a git baseline commit per trial. Trials cut off by harness problems (a
+  network outage, sub-agents launched in the background, orchestrators that didn't hand
+  off) were archived and rerun; every graded trial ends with the contestant's own report.
+
+**Compliance: 60/60 (2026-10-17/18).** Every build passes all 7 regression scenarios and
+all 12 search checks. A 4-trial Sonnet pilot, kept separately in
+`results/metrics-stage3-pilot.csv`, was also perfect.
+
+| Median per build | Boot 4.1.1 | Tiko 0.6.0 | Tiko ÷ Spring |
+|---|---|---|---|
+| Opus 5.5 | $0.66 · 17 tool calls | $0.84 · 22 | 1.26× |
+| Sonnet 5.5 | $0.26 · 22 | $0.28 · 21 | 1.09× |
+| Haiku 5.5 | $0.030 · 31 | $0.044 · 36 | 1.49× |
+
+(N=10 per cell, all 10/10. Exact sub-agent cost: the CLI total minus the orchestrator's
+share, output included. Per-trial rows: `results/metrics-stage3.csv`.)
+
+**What it found:**
+1. **Adding a feature to existing code is easy for every current model, on both
+   frameworks.** No regressions anywhere, and no search check failed, including Tiko,
+   where the agent hand-builds the HTTP server on the JDK's `com.sun.net.httpserver`.
+2. **Tiko's cost penalty almost disappears on existing code:** 1.1–1.5× Spring, against
+   1.8–3.6× (input-side) for building from scratch in Stage 1. A likely reason: the
+   existing build already shows how Tiko wires a component, so the agent doesn't have to
+   discover it.
+3. **The Lucene lifecycle is mostly right.** All 60 builds keep one long-lived
+   `IndexWriter`, and 58 refresh a `SearcherManager` after each write. Two Haiku Spring
+   builds open a new reader per query, and two Spring builds (Opus, Sonnet) commit on every
+   update, which buys nothing on an in-memory index. All are correct, only wasteful.
+4. **No build persists the index: 0/60.** Every build uses an in-memory
+   `ByteBuffersDirectory` and rebuilds it from H2 at startup. The spec allows either, and
+   the rebuild is the simpler correct choice at this size.
+
+**Code quality** of the Stage 3 builds is being scored by the same three-judge panel as
+Stage 1. It will be published once the remaining Stage 3 runs (Fable 5.1, OpenAI) and the
+judging are done.
+
 ## How it works
 
 - **Framework-neutral spec** (`docs/specs/stage-1-spec.md`) — describes *what* to
@@ -424,9 +487,17 @@ runs/   per-trial workspaces (git-ignored; see runs/README.md)
       (Thu 2026-10-22) and write the final three-judge medians
 - [ ] Stronger cache isolation for Spring cells: a per-trial home doesn't stop a
       `/c/Users/*/.m2` glob (e.g. move the shared cache aside during builds)
-- [ ] Stage 2 — extend loop-until-complies to other cells (spring3, tiko) and add a
-      held-out acceptance set to detect gate overfitting
-- [ ] Stage 3 spec — brownfield feature-add (Lucene full-text search + HTTP query)
+- [x] Stage 2 on Tiko 0.6.0 (2026-10-17): Haiku 5.5 10/10, every trial passing on its
+      first gate run, median $0.03 per build
+- [ ] Stage 2 — gpt-6-luna on Spring Boot 4 (2/10 one-shot), and a held-out acceptance set
+      to detect gate overfitting
+- [x] Stage 3 spec, starting code and grader (2026-10-17): brownfield Lucene search over
+      HTTP on a fixed Stage 1 build, 7 regression scenarios + 12 search checks
+- [x] Stage 3 runs (2026-10-17/18): Opus, Sonnet and Haiku 5.5 on `spring-411` and
+      `tiko-060`, 60/60 perfect; Tiko costs 1.1–1.5× Spring
+- [ ] Stage 3 for Fable 5.1 and the OpenAI models, then the Stage 3 code-quality results
+- [ ] Stage 4 — an internal "corporate" library the models were never trained on, offered
+      documented, with stale docs, or undocumented
 - [ ] Optional, last: Fable 5 with the July session context restored (user settings,
       plugins, CLAUDE.md, trials inside the repo), the remaining candidate for July's 1/5
 
