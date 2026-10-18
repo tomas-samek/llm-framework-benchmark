@@ -1,0 +1,66 @@
+{
+  "compliance" : 1.0,
+  "passed" : 12,
+  "total" : 12,
+  "results" : [ {
+    "scenario" : "S1",
+    "key" : "ergonomic",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S2",
+    "key" : "ERGONOMIC mouse",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S3",
+    "key" : "mouse peripherals",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S4",
+    "key" : "ergonomic+furniture",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S5",
+    "key" : "ergonomic limit 2",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S6",
+    "key" : "keyboards",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S6",
+    "key" : "ergo",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S7",
+    "key" : "trackball",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S7",
+    "key" : "monitor",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S8",
+    "key" : "split",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S9",
+    "key" : "no q",
+    "passed" : true,
+    "detail" : "ok"
+  }, {
+    "scenario" : "S9",
+    "key" : "limit 0",
+    "passed" : true,
+    "detail" : "ok"
+  } ]
+}

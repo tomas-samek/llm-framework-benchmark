@@ -284,3 +284,13 @@ timestamp,model,framework,stage,trial,compliance,wall_clock_seconds,output_token
 2026-10-17T04:16:46Z,claude-fable-5-1,tiko-060,stage-1,08,100,87,47320,,38,5.068
 2026-10-17T04:18:32Z,claude-fable-5-1,tiko-060,stage-1,09,100,87,42863,,53,3.726
 2026-10-17T04:20:18Z,claude-fable-5-1,tiko-060,stage-1,10,100,87,40659,,51,3.553
+2026-10-17T10:42:20Z,claude-haiku-5-5,tiko-060-loop,stage-2,01,100,87,21307,,29,0.029
+2026-10-17T10:44:06Z,claude-haiku-5-5,tiko-060-loop,stage-2,02,100,87,30852,,36,0.036
+2026-10-17T10:45:52Z,claude-haiku-5-5,tiko-060-loop,stage-2,03,100,87,43993,,48,0.096
+2026-10-17T10:47:39Z,claude-haiku-5-5,tiko-060-loop,stage-2,04,100,87,27526,,35,0.031
+2026-10-17T10:49:25Z,claude-haiku-5-5,tiko-060-loop,stage-2,05,100,87,37663,,42,0.042
+2026-10-17T10:51:11Z,claude-haiku-5-5,tiko-060-loop,stage-2,06,100,87,21444,,27,0.023
+2026-10-17T10:52:57Z,claude-haiku-5-5,tiko-060-loop,stage-2,07,100,87,37153,,43,0.042
+2026-10-17T10:54:51Z,claude-haiku-5-5,tiko-060-loop,stage-2,08,100,89,27579,,31,0.026
+2026-10-17T10:56:44Z,claude-haiku-5-5,tiko-060-loop,stage-2,09,100,89,22364,,28,0.024
+2026-10-17T10:58:38Z,claude-haiku-5-5,tiko-060-loop,stage-2,10,100,89,37073,,45,0.048

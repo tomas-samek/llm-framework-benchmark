@@ -1,0 +1,5 @@
+timestamp,model,cell,stage,trial,regression_passed,regression_total,search_passed,search_total,wall_clock_seconds,output_tokens,tool_calls,cost_usd
+2026-10-17T11:15:46Z,claude-sonnet-5-5,s3-spring-411,stage-3,01,7,7,12,12,98,,,
+2026-10-17T11:17:50Z,claude-sonnet-5-5,s3-spring-411,stage-3,02,7,7,12,12,98,,,
+2026-10-17T11:19:55Z,claude-sonnet-5-5,s3-tiko-060,stage-3,01,7,7,12,12,98,,,
+2026-10-17T11:21:59Z,claude-sonnet-5-5,s3-tiko-060,stage-3,02,7,7,12,12,98,,,

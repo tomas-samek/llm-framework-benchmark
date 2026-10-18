@@ -92,7 +92,8 @@ foreach ($t in $Trials) {
     # output_tokens / tool_calls / cost_usd are backfilled from the transcripts afterwards.
     $trialNum = $trialId -replace '^[A-Za-z0-9]+-', ''
     $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-    Add-Content -Path $Metrics -Value ("{0},{1},{2},stage-3,{3},{4},{5},{6},{7},{8},,," -f $ts, $Model, $cell, $trialNum, $reg[0], $reg[1], $srch[0], $srch[1], $elapsed)
+    # LF line endings, like the header: CSV readers then see one consistent file.
+    [IO.File]::AppendAllText($Metrics, ("{0},{1},{2},stage-3,{3},{4},{5},{6},{7},{8},,,`n" -f $ts, $Model, $cell, $trialNum, $reg[0], $reg[1], $srch[0], $srch[1], $elapsed))
 
     if ($null -ne $app) {
         try { taskkill /PID $app.Id /T /F | Out-Null } catch {}
